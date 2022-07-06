@@ -144,6 +144,13 @@ fit_cap_C_short<-capReg(Y_c_short,X_short_subset,method="CAP-C")
 fit_cap_C_conv<-capReg(Y_c_conv,X_conv_subset,method = "CAP-C")
 ```
 
+```{r}
+fit_cap_C_short$beta
+
+fit_cap_C_conv$beta
+```
+
+
 ## Average sample covariance matrix per group of sleepers
 
 ```{r}
@@ -152,25 +159,23 @@ s_cov_short = sample_covariance(ts_subject_info,"sleep_duration","short")
 s_cov_conventional = sample_covariance(ts_subject_info,"sleep_duration","conventional")
 ```
 
-GETTING INVERSE MATRIX
+## Covariance forcasting
+
+Getting the Inverse of gamma*gamma' 
 
 ```{r}
-gamma_mat_short = c_short3$gamma%*%t(c_short3$gamma)
-gamma_mat_conv = c_conv3$gamma%*%t(c_conv3$gamma)
+source("gamma_inv.R")
+gg_inv_s<-gamma_inv(fit_cap_C_short$gamma)
+gg_inv_c<-gamma_inv(fit_cap_C_conv$gamma)
 ```
 
+COVARIANCE MATRIX SUBJ_1, SLEEPERS (original data)
+
 ```{r}
-temp_s<-ginv(c_short3$gamma%*%t(c_short3$gamma))
-temp_c<-ginv(c_conv3$gamma%*%t(c_conv3$gamma))
+source("cov_pred_subj.R")
+sig_hat_sj1<-cov_pred_subj(fit_cap_C_short$gamma,fit_cap_C_short$beta,X_short_subset,gg_inv_s)
 ```
 
-COVARIANCE MATRIX SUBJ_1, SLEEPERS
-```{r}
-a<-temp_s%*%c_short3$gamma
-b<-exp(c_short3$beta[1]+X_short_subset[1,2]*c_short3$beta[2])
-c<-c_short3$gamma%*%temp_s
-sig_hat_s1<-a*b*c
-```
 
 Next steps:
 - Ricava per ogni soggetto (sia in short che in conventional) la matrice di covarianza. Come? Sample covariance.
