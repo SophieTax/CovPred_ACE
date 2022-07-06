@@ -10,7 +10,7 @@ params:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-
+## Loading libraries 
 ```{r}
 library(CovRegFC)
 library(cowplot)
@@ -25,13 +25,15 @@ library(BatchJobs)
 library(reshape2)
 library(rethinking)
 library(cap)
+library(dplyr)
 params
 ```
 
-Load subject info
+## Loading HCP (Human Connectome Project) data
 
+Load subject info
 ```{r}
-subject_info = read.csv("HCP_PTN820/sample_info.csv")
+subject_info = read.csv("data/HCP_PTN820/sample_info.csv")
 subject_info = subject_info[,c(
   "Subject",
   "Age",
@@ -42,6 +44,7 @@ subject_info = subject_info[,c(
   )] 
 ```
 
+Define two groups: short and conventional sleepers
 ```{r}
 sleep_duration = rep("undefined",nrow(subject_info))
 sleep_duration[subject_info$PSQI_AmtSleep <= 6] = "short"
@@ -56,7 +59,7 @@ Load timeseries
 num_regions = as.integer(params$num_regions)
 num_regions
 channel_names = paste0("R",1:num_regions)
-path = paste0("HCP_PTN820/node_timeseries/3T_HCP820_MSMAll_d",num_regions,"_ts2")
+path = paste0("data/HCP_PTN820/node_timeseries/3T_HCP820_MSMAll_d",num_regions,"_ts2")
 file_names = list.files(path = path,pattern = ".txt")
 file_subject_ids = strsplit(file_names,split = ".txt") %>% unlist
 ts = lapply(file_subject_ids,function(Subject) {
@@ -68,27 +71,24 @@ ts = lapply(file_subject_ids,function(Subject) {
 }) %>% do.call(rbind,.) %>% data.frame
 names(ts)[1:num_regions] = channel_names
 ```
-Create 2 groups: "short" sleepers and "conventional" sleepers
+Merge timeseries and subject info, and create 2 groups: "short" sleepers and "conventional" sleepers
 ```{r}
 ts_subject_info = merge(ts,subject_info,by = "Subject")
 ts_short = subset(ts_subject_info,sleep_duration=="short")
 ts_short$timepoint = rep(1:(nrow(ts_short)/4),4)
-```
-```{r}
 ts_conventional = subset(ts_subject_info,sleep_duration=="conventional")
 ts_conventional$timepoint = rep(1:(nrow(ts_conventional)/4),4)
 ```
 
-Generate our Y and X:
+## Generate our Y and X:
 
 Short sleepers
 ```{r}
 short_ids=unique(ts_short$Subject)
-test=split(ts_short,ts_short$Subject)
 short_subj=subset(subject_info,sleep_duration=="short")
 short_subj <- short_subj[short_subj$Subject %in% short_ids, ]
 X_short_subj<-short_subj[order(short_subj$Subject),]
-Y_short <- lapply(test, "[", TRUE, -c(17:24))
+Y_short <- lapply(split(ts_short,ts_short$Subject), "[", TRUE, -c(17:24))
 Y_short <- lapply(Y_short, "[", TRUE, -c(1))
 
 ```
@@ -96,11 +96,10 @@ Y_short <- lapply(Y_short, "[", TRUE, -c(1))
 Conventional sleepers
 ```{r}
 conventional_ids=unique(ts_conventional$Subject)
-test2=split(ts_conventional,ts_conventional$Subject)
 conventional_subj=subset(subject_info,sleep_duration=="conventional")
 conventional_subj <- conventional_subj[conventional_subj$Subject %in% conventional_ids, ]
 X_conv_subj<-conventional_subj[order(conventional_subj$Subject),]
-Y_conv <- lapply(test2, "[", TRUE, -c(17:24))
+Y_conv <- lapply(split(ts_conventional,ts_conventional$Subject), "[", TRUE, -c(17:24))
 Y_conv <- lapply(Y_conv, "[", TRUE, -c(1))
 ```
 
@@ -109,50 +108,48 @@ Select 1 covariate (here "PSQI:Score") and convert Y and X to matrices (required
 ```{r}
 X_short_subset<-subset(X_short_subj, select="PSQI_Score")
 X_short_subset<-cbind(inter = 1, X_short_subset)
+
 X_short_subset<-data.matrix(X_short_subset)
 Y_short<-lapply(Y_short, function(x) data.matrix(x))
 ```
 ```{r}
 X_conv_subset<-subset(X_conv_subj, select="PSQI_Score")
 X_conv_subset<-cbind(inter = 1, X_conv_subset)
+
 X_conv_subset<-data.matrix(X_conv_subset)
 Y_conv<-lapply(Y_conv, function(x) data.matrix(x))
 ```
-
-Fit capReg
-
-```{r}
-c_short<-capReg(Y_short,X_short_subset,method="CAP")
-c_conv<-capReg(Y_conv,X_conv_subset,method = "CAP")
-```
-
-```{r}
-
-c_short$beta
-
-c_conv$beta
-
-```
-
-Repeat fit of capReg, this time centering Y
+Center Y
 ```{r}
 Y_c_short<- lapply(Y_short, function(x) scale(x,center = TRUE, scale = FALSE))
 Y_c_conv<- lapply(Y_conv, function(x) scale(x,center = TRUE, scale = FALSE))
 ```
-```{r}
-c_short2<-capReg(Y_c_short,X_short_subset,method="CAP")
-c_conv2<-capReg(Y_c_conv,X_conv_subset,method = "CAP")
+## Fit capReg
+
+Fit of capReg, using CAP algorithm
+
+```{r fitting cap}
+fit_cap_short<-capReg(Y_c_short,X_short_subset,method="CAP")
+fit_cap_conv<-capReg(Y_c_conv,X_conv_subset,method = "CAP")
 ```
 
 ```{r}
-c_short2$beta
+fit_cap_short$beta
 
-c_conv2$beta
+fit_cap_conv$beta
+```
+Fit of capReg, using CAP-C algorithm
+```{r}
+fit_cap_C_short<-capReg(Y_c_short,X_short_subset,method="CAP-C")
+fit_cap_C_conv<-capReg(Y_c_conv,X_conv_subset,method = "CAP-C")
 ```
 
+## Average sample covariance matrix per group of sleepers
+
 ```{r}
-c_short3<-capReg(Y_c_short,X_short_subset,method="CAP-C")
-c_conv3<-capReg(Y_c_conv,X_conv_subset,method = "CAP-C")
+source("sample_covariance.R")
+s_cov_short = sample_covariance(ts_subject_info,"sleep_duration","short")
+s_cov_conventional = sample_covariance(ts_subject_info,"sleep_duration","conventional")
 ```
 
 GETTING INVERSE MATRIX
@@ -185,28 +182,7 @@ Sample covariance
 t<-Y_c_short[[1]]
 ```
 
-AVERAGE COVARIANCE MATRIX PER GROUP OF SLEEPERS
-```{r}
-subset_tasks = function(data,factor_name,level_name) {
-  data_subgroup = data[which(data[factor_name] == level_name),] %>% droplevels
-  region_ids = str_detect(names(ts_subject_info),"R") %>% which
-  subject_ids = table(data_subgroup$Subject) %>% names
-  scov = list()
-  K = length(subject_ids)
-  P = length(region_ids)
-  scov$YY = array(dim = c(K,P,P))
-  for(i in 1:K) {
-    Y = subset(data_subgroup,Subject == subject_ids[i])[,region_ids]
-    Y_c = scale(Y,center = TRUE,scale = FALSE)
-    scov$YY[i,,] = t(Y_c) %*% Y_c
-  }
-  scov$N = table(data_subgroup$Subject)
-  scov
-}
 
-scov_short = subset_tasks(ts_subject_info,"sleep_duration","short")
-scov_conventional = subset_tasks(ts_subject_info,"sleep_duration","conventional")
-```
 
 ricavare elementi unici di x tra short e conventional
 ```{r}
