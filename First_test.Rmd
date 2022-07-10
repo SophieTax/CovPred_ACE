@@ -1,5 +1,5 @@
 ---
-title: "Internship: first try"
+title: "Internship: exploring causal inference in the context of brain connectivity "
 output: html_notebook
 author: Sophie Tascedda
 date: "`r Sys.Date()`"
@@ -30,6 +30,7 @@ params
 ```
 
 ## Loading HCP (Human Connectome Project) data
+Analysis based on data from the WU-Minn HCP 1200 Subjects Data Release with four complete rfMRI runs (with 100% of collected time points).
 
 Load subject info
 ```{r}
@@ -44,7 +45,11 @@ subject_info = subject_info[,c(
   )] 
 ```
 
-Define two groups: short and conventional sleepers
+Define two groups: short and conventional sleepers according to the classification from Hirshkowitz et al. (2015)^[Hirshkowitz et al. (2015), National Sleep Foundation's sleep recommendations: Methodology and results summary, Sleep Health.]:
+
+* short sleepers: average equal or less than 6 hours each night
+* conventional sleepers: average between 7 and 9 hours each night
+
 ```{r}
 sleep_duration = rep("undefined",nrow(subject_info))
 sleep_duration[subject_info$PSQI_AmtSleep <= 6] = "short"
@@ -59,7 +64,7 @@ Load timeseries
 num_regions = as.integer(params$num_regions)
 num_regions
 channel_names = paste0("R",1:num_regions)
-path = paste0("data/HCP_PTN820/node_timeseries/3T_HCP820_MSMAll_d",num_regions,"_ts2")
+path = paste0("data/HCP_PTN820/node_timeseries/3T_HCP820_MSMAll_d",num_regions,"_ts2") 
 file_names = list.files(path = path,pattern = ".txt")
 file_subject_ids = strsplit(file_names,split = ".txt") %>% unlist
 ts = lapply(file_subject_ids,function(Subject) {
@@ -71,7 +76,7 @@ ts = lapply(file_subject_ids,function(Subject) {
 }) %>% do.call(rbind,.) %>% data.frame
 names(ts)[1:num_regions] = channel_names
 ```
-Merge timeseries and subject info, and create 2 groups: "short" sleepers and "conventional" sleepers
+Merge timeseries and subject info, and separate in 2 groups: "short" sleepers and "conventional" sleepers
 ```{r}
 ts_subject_info = merge(ts,subject_info,by = "Subject")
 ts_short = subset(ts_subject_info,sleep_duration=="short")
@@ -169,7 +174,6 @@ gg_inv_s<-gamma_inv(fit_cap_C_short$gamma)
 gg_inv_c<-gamma_inv(fit_cap_C_conv$gamma)
 ```
 
-COVARIANCE MATRIX SUBJ_1, SLEEPERS (original data)
 
 ```{r}
 source("cov_pred_subj.R")
@@ -178,14 +182,7 @@ sig_hat_sj1<-cov_pred_subj(fit_cap_C_short$gamma,fit_cap_C_short$beta,X_short_su
 
 
 Next steps:
-- Ricava per ogni soggetto (sia in short che in conventional) la matrice di covarianza. Come? Sample covariance.
-- Poi, make prediction per cov. matrix usando la formula qui sopra. Più in dettaglio, fai prediction sulla matrice di cov. per ogni soggetto usando unseen X values.
-
-Sample covariance
-
-```{r}
-t<-Y_c_short[[1]]
-```
+- make prediction per cov. matrix usando la formula qui sopra. Più in dettaglio, fai prediction sulla matrice di cov. per ogni soggetto usando unseen X values.
 
 
 
@@ -194,6 +191,8 @@ ricavare elementi unici di x tra short e conventional
 unique(X_short_subj$PSQI_Score)%>%sort(decreasing = FALSE)
 unique(X_conv_subj$PSQI_Score)%>%sort(decreasing = FALSE)
 ```
+
+COVARIANCE MATRIX SUBJ_1, SLEEPERS (original data)
 ```{r}
 a<-temp_s%*%c_short3$gamma
 b<-exp(c_short3$beta[1]+X_short_subset[1,2]*c_short3$beta[2])
