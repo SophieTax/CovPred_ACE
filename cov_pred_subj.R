@@ -4,5 +4,5 @@ cov_pred_subj = function(gamma,beta,X,gginv){
   b<-exp(beta[1]+X*beta[2])
   c<-gamma%*%gginv
   sig_hat_si<-a%*%b%*%c
-  sig_hat_si
+  as.matrix(sig_hat_si)
 }
