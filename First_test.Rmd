@@ -180,61 +180,42 @@ unique_X_short<-unique(X_short_subj$PSQI_AmtSleep)%>%sort(decreasing = FALSE)
 unique_X_conv<-unique(X_conv_subj$PSQI_AmtSleep)%>%sort(decreasing = FALSE)
 ```
 
+Sampling unseen X values for the 2 groups
 ```{r}
-t_1sub<-sample(unique_X_conv,1)
-t_for_short<-sample(unique_X_conv,size=241,replace=TRUE)
-t_for_conv<-sample(unique_X_short,size=489, replace=TRUE)
+t_for_short<-data.frame(X=sample(unique_X_conv,size=length(short_ids),replace=TRUE),sub=short_ids)
+t_for_conv<-data.frame(X=sample(unique_X_short,size=length(conventional_ids), replace=TRUE),sub=conventional_ids)
+
 ```
 
-Try for 1st subject from short sleepers.
+Try for 1st and 2nd subject from short sleepers.
 ```{r}
 source("cov_pred_subj.R")
-sig_hat_sj1<-cov_pred_subj(fit_cap_C_short$gamma,fit_cap_C_short$beta,t_1sub,gg_inv_s)
+sig_hat_sj1<-cov_pred_subj(fit_cap_C_short$gamma,fit_cap_C_short$beta,t_for_short$X[1],gg_inv_s)
+sig_hat_sj2<-cov_pred_subj(fit_cap_C_short$gamma,fit_cap_C_short$beta,t_for_short$X[2],gg_inv_s)
+sig_hat_sj2<-as.matrix(sig_hat_sj2)
 ```
 
 ```{r}
 s1_sample_cov<-s_cov_short$YY[1]
 ```
 
-
-
-Next steps:
-- make prediction per cov. matrix usando la formula qui sopra. Più in dettaglio, fai prediction sulla matrice di cov. per ogni soggetto usando unseen X values.
-
-
-
-
-
-COVARIANCE MATRIX SUBJ_1, SLEEPERS (original data)
 ```{r}
-a<-temp_s%*%c_short3$gamma
-b<-exp(c_short3$beta[1]+X_short_subset[1,2]*c_short3$beta[2])
-c<-c_short3$gamma%*%temp_s
-sig_hat_s1<-a*b*c
+source("cov_pred_subj.R")
+cov_short=list()
+cov_short$cov=array(dim=c(length(channel_names),length(channel_names),length(short_ids)))
+for(i in 1:length(t_for_short$X)){
+  cov_short$sub[i]=t_for_short$sub[i]
+  cov_short$cov[,,i]=cov_pred_subj(fit_cap_C_short$gamma,fit_cap_C_short$beta,t_for_short$X[i],gg_inv_s)
+}
 ```
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+Try for all shorts
+```{r}
+source("cov_pred.R")
+cov_pred_short = cov_pred(fit_cap_C_short$gamma,fit_cap_C_short$beta,t_for_short,gg_inv_s)
+cov_pred_conv = cov_pred(fit_cap_C_conv$gamma,fit_cap_C_conv$beta,t_for_conv,gg_inv_c)
+```
 
 
 
