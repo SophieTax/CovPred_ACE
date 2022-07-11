@@ -195,10 +195,10 @@ sig_hat_sj2<-cov_pred_subj(fit_cap_C_short$gamma,fit_cap_C_short$beta,t_for_shor
 sig_hat_sj2<-as.matrix(sig_hat_sj2)
 ```
 
-```{r}
-s1_sample_cov<-s_cov_short$YY[1]
-```
 
+Extend to all subjects of both groups
+
+Using function built for 1 subject, for short sleepers
 ```{r}
 source("cov_pred_subj.R")
 cov_short=list()
@@ -210,7 +210,7 @@ for(i in 1:length(t_for_short$X)){
 ```
 
 
-Try for all shorts
+New function
 ```{r}
 source("cov_pred.R")
 cov_pred_short = cov_pred(fit_cap_C_short$gamma,fit_cap_C_short$beta,t_for_short,gg_inv_s)

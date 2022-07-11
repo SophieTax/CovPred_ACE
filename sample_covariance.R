@@ -9,7 +9,7 @@ sample_covariance = function(data, factor_name, level_name) {
   for(i in 1:K) {
     Y = subset(data_sub,Subject == subject_ids[i])[,region_ids]
     Y_c = scale(Y,center = TRUE,scale = FALSE)
-    s_cov$YY[i,,] = t(Y_c) %*% Y_c
+    s_cov$YY[i,,] =( t(Y_c) %*% Y_c)/K
   }
   s_cov$N = table(data_sub$Subject)
   s_cov
