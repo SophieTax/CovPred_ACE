@@ -117,6 +117,7 @@ X_short_subset<-cbind(inter = 1, X_short_subset)
 X_short_subset<-data.matrix(X_short_subset)
 Y_short<-lapply(Y_short, function(x) data.matrix(x))
 ```
+
 ```{r}
 X_conv_subset<-subset(X_conv_subj, select="PSQI_AmtSleep")
 X_conv_subset<-cbind(inter = 1, X_conv_subset)
@@ -127,7 +128,9 @@ Y_conv<-lapply(Y_conv, function(x) data.matrix(x))
 Center Y
 ```{r}
 Y_c_short<- lapply(Y_short, function(x) scale(x,center = TRUE, scale = FALSE))
+#Y_c_short<- lapply(Y_c_short, function(x) data.matrix(x))
 Y_c_conv<- lapply(Y_conv, function(x) scale(x,center = TRUE, scale = FALSE))
+#Y_c_conv<- lapply(Y_c_conv, function(x) data.matrix(x))
 ```
 ## Fit capReg
 
@@ -159,10 +162,18 @@ fit_cap_C_conv$beta
 ## Average sample covariance matrix per group of sleepers, per subject
 
 ```{r}
-source("sample_covariance.R")
-s_cov_short = sample_covariance(ts_subject_info,"sleep_duration","short")
-s_cov_conventional = sample_covariance(ts_subject_info,"sleep_duration","conventional")
+#source("sample_covariance.R")
+#s_cov_short = sample_covariance(ts_subject_info,"sleep_duration","short")
+#s_cov_conventional = sample_covariance(ts_subject_info,"sleep_duration","conventional")
 ```
+
+
+```{r}
+source("sample_covariance.R")
+sample_cov_short<-sample_covariance(Y_c_short,channel_names,short_ids)
+```
+
+
 
 ## Covariance forcasting
 
