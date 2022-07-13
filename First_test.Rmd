@@ -162,17 +162,10 @@ fit_cap_C_conv$beta
 ## Average sample covariance matrix per group of sleepers, per subject
 
 ```{r}
-#source("sample_covariance.R")
-#s_cov_short = sample_covariance(ts_subject_info,"sleep_duration","short")
-#s_cov_conventional = sample_covariance(ts_subject_info,"sleep_duration","conventional")
-```
-
-
-```{r}
 source("sample_covariance.R")
 sample_cov_short<-sample_covariance(Y_c_short,channel_names,short_ids)
+sample_cov_conventional<-sample_covariance(Y_c_conv,channel_names,conventional_ids)
 ```
-
 
 
 ## Covariance forcasting
