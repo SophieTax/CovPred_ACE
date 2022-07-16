@@ -221,6 +221,66 @@ cov_pred_short = cov_pred(fit_cap_C_short$gamma,fit_cap_C_short$beta,t_for_short
 cov_pred_conv = cov_pred(fit_cap_C_conv$gamma,fit_cap_C_conv$beta,t_for_conv,gg_inv_c)
 ```
 
+## Comparing
+Get upper triangles (first, try for 1 matrix)
+```{r}
+get_triangle<-function(data){
+  m<-data
+  t<-upper.tri(m, diag = TRUE)
+  m[t]=NA
+  m
+}
+t1<-get_triangle(sample_cov_short$cov[,,1])
+t1pred<-get_triangle(cov_pred_short$YY[,,1])
+diff1<-t1-t1pred
+```
+
+Repeat for all matrices, short sleepers
+```{r}
+triangle_sample_short=list()
+triangle_sample_short$mat=array(dim = c(length(channel_names),length(channel_names),length(short_ids)))
+for (i in 1:length(short_ids)){
+  triangle_sample_short$mat[,,i]=get_triangle(sample_cov_short$cov[,,i])
+}
+
+triangle_pred_short=list()
+triangle_pred_short$mat=array(dim = c(length(channel_names),length(channel_names),length(short_ids)))
+for (k in 1:length(short_ids)){
+  triangle_pred_short$mat[,,k]=get_triangle(cov_pred_short$YY[,,k])
+}
+
+diff_short=list()
+diff_short$difference=array(dim=c(length(channel_names),length(channel_names),length(short_ids)))
+for (m in 1:length(short_ids)){
+  diff_short$difference[,,m]=triangle_sample_short$mat[,,m]-triangle_pred_short$mat[,,m]
+}
+diff_short$difference[,,1]
+```
+
+Repeat for all matrices, conventional sleepers
+```{r}
+triangle_sample_conv=list()
+triangle_sample_conv$mat=array(dim = c(length(channel_names),length(channel_names),length(conventional_ids)))
+for (i in 1:length(conventional_ids)){
+  triangle_sample_conv$mat[,,i]=get_triangle(sample_cov_conventional$cov[,,i])
+}
+
+triangle_pred_conv=list()
+triangle_pred_conv$mat=array(dim = c(length(channel_names),length(channel_names),length(conventional_ids)))
+for (k in 1:length(conventional_ids)){
+  triangle_pred_conv$mat[,,k]=get_triangle(cov_pred_conv$YY[,,k])
+}
+
+diff_conv=list()
+diff_conv$difference=array(dim=c(length(channel_names),length(channel_names),length(conventional_ids)))
+for (m in 1:length(conventional_ids)){
+  diff_conv$difference[,,m]=triangle_sample_conv$mat[,,m]-triangle_pred_conv$mat[,,m]
+}
+diff_conv$difference[,,1]
+```
+
+
+
 
 
 
