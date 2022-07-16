@@ -279,6 +279,15 @@ for (m in 1:length(conventional_ids)){
 diff_conv$difference[,,1]
 ```
 
+Paired t-test, for 1 matrix
+
+```{r}
+ttest1<-t.test(x=c(triangle_sample_short$mat[,,1]), y=c(triangle_pred_short$mat[,,1]), paired = TRUE, alternative = "two.sided")
+ttest1
+```
+
+
+
 
 
 
