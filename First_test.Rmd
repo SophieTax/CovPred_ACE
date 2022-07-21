@@ -286,7 +286,32 @@ ttest1<-t.test(x=c(triangle_sample_short$mat[,,1]), y=c(triangle_pred_short$mat[
 ttest1
 ```
 
+Paired t-test, all short
+```{r}
+ttest_short=list()
+for (i in 1:length(short_ids)){
+  ttesti<-t.test(x=c(triangle_sample_short$mat[,,i]), y=c(triangle_pred_short$mat[,,i]), paired = TRUE, alternative= "two.sided")
+  ttest_short[[i]]=ttesti
+}
+```
 
+Paired t_test, all conv.
+```{r}
+ttest_conv=list()
+for (i in 1:length(conventional_ids)){
+  ttesti<-t.test(x=c(triangle_sample_conv$mat[,,i]), y=c(triangle_pred_conv$mat[,,i]), paired = TRUE, alternative= "two.sided")
+  ttest_conv[[i]]=ttesti
+}
+```
+
+Element-wise t test, 1st element ov cov matrix of 1st subject of short
+```{r}
+tmp1=c(t(triangle_sample_short$mat[,,1]))
+tmp1<-tmp1[!is.na(tmp1)]
+tmp2=c(t(triangle_pred_short$mat[,,1]))
+tmp2<-tmp2[!is.na(tmp2)]
+ttest1_1=t.test(x=tmp1[1],y=tmp2[1], paired = TRUE, alternative = "two.sided")
+```
 
 
 
