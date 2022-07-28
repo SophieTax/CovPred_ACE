@@ -304,14 +304,28 @@ for (i in 1:length(conventional_ids)){
 }
 ```
 
-Element-wise t test, 1st element ov cov matrix of 1st subject of short
+Corresponding elements for all short subjects. Specifically: row2, col1
 ```{r}
-tmp1=c(t(triangle_sample_short$mat[,,1]))
-tmp1<-tmp1[!is.na(tmp1)]
-tmp2=c(t(triangle_pred_short$mat[,,1]))
-tmp2<-tmp2[!is.na(tmp2)]
-ttest1_1=t.test(x=tmp1[1],y=tmp2[1], paired = TRUE, alternative = "two.sided")
+tmp_ssample=vector()
+for (s in 1:length(short_ids)){
+  tmp_ssample[s]=triangle_sample_short$mat[2,1,s]
+}
+
+tmp_spred=vector()
+for (s in 1:length(short_ids)){
+  tmp_spred[s]=triangle_pred_short$mat[2,1,s]
+}
 ```
+t_test on those elements
+```{r}
+ttest_pairwise_short=t.test(x=c(tmp_ssample), y=c(tmp_spred),paired=TRUE, alternative = "two.sided")
+```
+
+Now, do the same for all matrix elements
+Qualcosa non va. Need to check nested for loops 
+
+
+
 
 
 
