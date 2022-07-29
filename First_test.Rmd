@@ -321,46 +321,54 @@ t_test on those elements
 ttest_pairwise_short=t.test(x=c(tmp_ssample), y=c(tmp_spred),paired=TRUE, alternative = "two.sided")
 ```
 
-Now, do the same for all matrix elements
-Qualcosa non va. Need to check nested for loops 
 
+Now, do the same for all matrix elements
 ```{r}
 tmp_sample_short_corresp_elem=vector()
 tmp_pred_short_corresp_elem=vector()
 ttest_short_sleepers=list()
-ttest_short_sleepers$test=list()
-n=1
+i=1
 for (col in 1:(length(channel_names)-1)){
+  i=i
   for (row in (col+1):length(channel_names)){
+    i=i
     for (s in 1:length(short_ids)){
       tmp_sample_short_corresp_elem[s]=triangle_sample_short$mat[row,col,s]
       tmp_pred_short_corresp_elem[s]=triangle_pred_short$mat[row,col,s]
     }
     test_current=t.test(x=c(tmp_sample_short_corresp_elem), y=c(tmp_pred_short_corresp_elem), paired=TRUE, alternative="two.sided")
-    ttest_short_sleepers$test<-append(ttest_short_sleepers$test, test_current, after=length(test_current))
+    ttest_short_sleepers[[i]]=list()
+    ttest_short_sleepers[[i]]=test_current
+    i=i+1
   }
 }
 
 ```
+
 
 ```{r}
 tmp_sample_conv_corresp_elem=vector()
 tmp_pred_conv_corresp_elem=vector()
 ttest_conv_sleepers=list()
-ttest_conv_sleepers$test=list()
-n=1
+i=1
 for (col in 1:(length(channel_names)-1)){
+  i=i
   for (row in (col+1):length(channel_names)){
+    i=i
     for (s in 1:length(conventional_ids)){
       tmp_sample_conv_corresp_elem[s]=triangle_sample_conv$mat[row,col,s]
       tmp_pred_conv_corresp_elem[s]=triangle_pred_conv$mat[row,col,s]
     }
     test_current=t.test(x=c(tmp_sample_conv_corresp_elem), y=c(tmp_pred_conv_corresp_elem), paired=TRUE, alternative="two.sided")
-    ttest_conv_sleepers$test<-append(ttest_conv_sleepers$test, test_current, after=length(test_current))
+    ttest_conv_sleepers[[i]]=list()
+    ttest_conv_sleepers[[i]]=test_current
+    i=i+1
   }
 }
-
+ttest_conv_sleepers[[2]]
 ```
+Prepare for BH procedure (multiple testing)
+
 
 
 
