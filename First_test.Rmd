@@ -339,38 +339,19 @@ BH_short<-p.adjust(pvalues_short, method = "BH")
 BH_conv<-p.adjust(pvalues_conv, method = "BH")
 ```
 
-
 ```{r}
-P_short = matrix(,num_regions,num_regions)
-i=1
-for (col in 1:(length(channel_names)-1)){
-  i=i
-  for (row in (col+1):length(channel_names)){
-    P_short[row,col]=BH_short[i]
-    i=i+1
-  }
-}
+source("back_to_matrix.R")
+P_short=back_to_matrix(num_regions,channel_names,BH_short)
+P_conv=back_to_matrix(num_regions, channel_names, BH_conv)
 ```
 
 ```{r}
-P_conv = matrix(num_regions,num_regions)
-i=1
-for (col in 1:(length(channel_names)-1)){
-  i=i
-  for (row in (col+1):length(channel_names)){
-    P_conv[row,col]=BH_conv[i]
-    i=i+1
-  }
-}
-```
-
-```{r}
-plot_short=image(x=(0:num_regions), y=(0:num_regions),z=P_short)
+plot_short=image(x=(0:num_regions), y=(0:num_regions),z=P_short, xlab="regions", ylab="regions")
 grid(nx=num_regions, ny=num_regions,col="lightgray")
 plot_short
 ```
 ```{r}
-plot_conv=image(x=(0:num_regions), y=(0:num_regions),z=P_conv)
+plot_conv=image(x=(0:num_regions), y=(0:num_regions),z=P_conv, xlab="regions", ylab="regions")
 grid(nx=num_regions, ny=num_regions,col="lightgray")
 plot_conv
 ```
