@@ -10,6 +10,13 @@ params:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+
+Investigating how we could combine causal inference
+frameworks from social sciences and discovery frameworks
+from machine learning to improve the statistical efficiency of
+currently applied neuroimaging techniques.
+
+
 ## Loading libraries 
 ```{r}
 library(CovRegFC)
