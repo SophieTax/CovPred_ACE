@@ -76,7 +76,7 @@ ts = lapply(file_subject_ids,function(Subject) {
 }) %>% do.call(rbind,.) %>% data.frame
 names(ts)[1:num_regions] = channel_names
 ```
-Merge timeseries and subject info, and separate in 2 groups: "short" sleepers and "conventional" sleepers
+Merge timeseries and subject info, and separate in 2 groups. Here, "short" sleepers and "conventional" sleepers
 ```{r}
 ts_subject_info = merge(ts,subject_info,by = "Subject")
 ts_short = subset(ts_subject_info,sleep_duration=="short")
@@ -86,6 +86,8 @@ ts_conventional$timepoint = rep(1:(nrow(ts_conventional)/4),4)
 ```
 
 ## Generate our Y and X:
+Y: timeseries data
+X: covariate(s)
 
 Short sleepers
 ```{r}
@@ -178,16 +180,12 @@ gg_inv_s<-gamma_inv(fit_cap_C_short$gamma)
 gg_inv_c<-gamma_inv(fit_cap_C_conv$gamma)
 ```
 
-Unique X values in short and conventional
-```{r}
-unique_X_short<-unique(X_short_subj$PSQI_AmtSleep)%>%sort(decreasing = FALSE)
-unique_X_conv<-unique(X_conv_subj$PSQI_AmtSleep)%>%sort(decreasing = FALSE)
-```
+Unique X values in short and conventional and Sampling unseen X values for the 2 groups
 
-Sampling unseen X values for the 2 groups
 ```{r}
-t_for_short<-data.frame(X=sample(unique_X_conv,size=length(short_ids),replace=TRUE),sub=short_ids)
-t_for_conv<-data.frame(X=sample(unique_X_short,size=length(conventional_ids), replace=TRUE),sub=conventional_ids)
+source("sample_unseen.R")
+t_for_short<-sample_unseen(X_short_subj$PSQI_AmtSleep,short_ids)
+t_for_conv<-sample_unseen(X_conv_subj$PSQI_AmtSleep,conventional_ids)
 
 ```
 
@@ -201,7 +199,6 @@ sig_hat_sj2<-as.matrix(sig_hat_sj2)
 
 
 Extend to all subjects of both groups
-
 Using function built for 1 subject, for short sleepers
 ```{r}
 source("cov_pred_subj.R")
@@ -224,15 +221,10 @@ cov_pred_conv = cov_pred(fit_cap_C_conv$gamma,fit_cap_C_conv$beta,t_for_conv,gg_
 ## Comparing
 Get upper triangles (first, try for 1 matrix)
 ```{r}
-get_triangle<-function(data){
-  m<-data
-  t<-upper.tri(m, diag = TRUE)
-  m[t]=NA
-  m
-}
+source("get_triangle.R")
 t1<-get_triangle(sample_cov_short$cov[,,1])
 t1pred<-get_triangle(cov_pred_short$YY[,,1])
-diff1<-t1-t1pred
+#diff1<-t1-t1pred
 ```
 
 Repeat for all matrices, short sleepers
@@ -323,66 +315,21 @@ ttest_pairwise_short=t.test(x=c(tmp_ssample), y=c(tmp_spred),paired=TRUE, altern
 
 
 Now, do the same for all matrix elements
-```{r}
-tmp_sample_short_corresp_elem=vector()
-tmp_pred_short_corresp_elem=vector()
-ttest_short_sleepers=list()
-i=1
-for (col in 1:(length(channel_names)-1)){
-  i=i
-  for (row in (col+1):length(channel_names)){
-    i=i
-    for (s in 1:length(short_ids)){
-      tmp_sample_short_corresp_elem[s]=triangle_sample_short$mat[row,col,s]
-      tmp_pred_short_corresp_elem[s]=triangle_pred_short$mat[row,col,s]
-    }
-    test_current=t.test(x=c(tmp_sample_short_corresp_elem), y=c(tmp_pred_short_corresp_elem), paired=TRUE, alternative="two.sided")
-    ttest_short_sleepers[[i]]=list()
-    ttest_short_sleepers[[i]]=test_current
-    i=i+1
-  }
-}
-
-```
-
 
 ```{r}
-tmp_sample_conv_corresp_elem=vector()
-tmp_pred_conv_corresp_elem=vector()
-ttest_conv_sleepers=list()
-i=1
-for (col in 1:(length(channel_names)-1)){
-  i=i
-  for (row in (col+1):length(channel_names)){
-    i=i
-    for (s in 1:length(conventional_ids)){
-      tmp_sample_conv_corresp_elem[s]=triangle_sample_conv$mat[row,col,s]
-      tmp_pred_conv_corresp_elem[s]=triangle_pred_conv$mat[row,col,s]
-    }
-    test_current=t.test(x=c(tmp_sample_conv_corresp_elem), y=c(tmp_pred_conv_corresp_elem), paired=TRUE, alternative="two.sided")
-    ttest_conv_sleepers[[i]]=list()
-    ttest_conv_sleepers[[i]]=test_current
-    i=i+1
-  }
-}
-ttest_conv_sleepers[[2]]
+source("Repeated_ttest.R")
+ttest_short_sleepers<-Repeated_ttest(channel_names,short_ids,triangle_sample_short$mat,triangle_pred_short$mat)
+ttest_conv_sleepers<-Repeated_ttest(channel_names,conventional_ids,triangle_sample_conv$mat,triangle_pred_conv$mat)
 ```
+
 Prepare for BH procedure (multiple testing):
 
-pvalues short sleepers
-```{r}
-pvalues_short=list()
-for (i in 1:length(ttest_short_sleepers)){
-  pvalues_short[i]=ttest_short_sleepers[[i]][3]
-}
-```
+pvalues short and conventional sleepers
 
-pvalues conventional sleepers
 ```{r}
-pvalues_conv=list()
-for (i in 1:length(ttest_conv_sleepers)){
-  pvalues_conv[i]=ttest_conv_sleepers[[i]][3]
-}
+source("get_pvalues.R")
+pvalues_short=get_pvalues(ttest_short_sleepers)
+pvalues_conv=get_pvalues(ttest_conv_sleepers)
 ```
 
 BH procedure
@@ -391,6 +338,7 @@ library(stats)
 BH_short<-p.adjust(pvalues_short, method = "BH")
 BH_conv<-p.adjust(pvalues_conv, method = "BH")
 ```
+
 
 ```{r}
 P_short = matrix(,num_regions,num_regions)
@@ -405,7 +353,7 @@ for (col in 1:(length(channel_names)-1)){
 ```
 
 ```{r}
-P_conv = matrix(,num_regions,num_regions)
+P_conv = matrix(num_regions,num_regions)
 i=1
 for (col in 1:(length(channel_names)-1)){
   i=i
@@ -417,12 +365,12 @@ for (col in 1:(length(channel_names)-1)){
 ```
 
 ```{r}
-plot_short=image(z=P_short)
+plot_short=image(x=(0:num_regions), y=(0:num_regions),z=P_short)
 grid(nx=num_regions, ny=num_regions,col="lightgray")
 plot_short
 ```
 ```{r}
-plot_conv=image(z=P_conv)
+plot_conv=image(x=(0:num_regions), y=(0:num_regions),z=P_conv)
 grid(nx=num_regions, ny=num_regions,col="lightgray")
 plot_conv
 ```
