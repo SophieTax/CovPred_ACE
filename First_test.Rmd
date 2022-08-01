@@ -355,14 +355,22 @@ P_conv=back_to_matrix(num_regions, channel_names, BH_conv)
 ```{r}
 plot_short=image(x=(0:num_regions), y=(0:num_regions),z=P_short, xlab="regions", ylab="regions")
 grid(nx=num_regions, ny=num_regions,col="lightgray")
-plot_short
+#plot_short
+library(lattice)
+library(RColorBrewer)
+levelplot(P_short, xlab="regions", ylab="regions", col.regions=brewer.pal(6,"PuRd"))
 ```
 ```{r}
 plot_conv=image(x=(0:num_regions), y=(0:num_regions),z=P_conv, xlab="regions", ylab="regions")
 grid(nx=num_regions, ny=num_regions,col="lightgray")
 plot_conv
 ```
-
+ Need to perfect plots:
+ - find nice color palette
+ - add legend
+ - properly tick the axes
+ - choose best function  for plotting
+ 
 
 
 
