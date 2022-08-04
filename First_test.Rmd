@@ -281,26 +281,26 @@ diff_conv$difference[,,1]
 Paired t-test, for 1 matrix
 
 ```{r}
-ttest1<-t.test(x=c(triangle_sample_short$mat[,,1]), y=c(triangle_pred_short$mat[,,1]), paired = TRUE, alternative = "two.sided")
+ttest1<-t.test(x=c(triangle_sample_short$mat[,,1]), y=c(triangle_sample_conv$mat[,,1]), paired = TRUE, alternative = "two.sided")
 ttest1
 ```
 
 Paired t-test, all short
 ```{r}
-ttest_short=list()
-for (i in 1:length(short_ids)){
-  ttesti<-t.test(x=c(triangle_sample_short$mat[,,i]), y=c(triangle_pred_short$mat[,,i]), paired = TRUE, alternative= "two.sided")
-  ttest_short[[i]]=ttesti
-}
+#ttest=list()
+#for (i in 1:length(short_ids)){
+ # ttesti<-t.test(x=c(triangle_sample_short$mat[,,i]), y=c(triangle_pred_short$mat[,,i]), paired = TRUE, alternative= "two.sided")
+  #ttest_short[[i]]=ttesti
+#}
 ```
 
 Paired t_test, all conv.
 ```{r}
-ttest_conv=list()
-for (i in 1:length(conventional_ids)){
-  ttesti<-t.test(x=c(triangle_sample_conv$mat[,,i]), y=c(triangle_pred_conv$mat[,,i]), paired = TRUE, alternative= "two.sided")
-  ttest_conv[[i]]=ttesti
-}
+#ttest_conv=list()
+#for (i in 1:length(conventional_ids)){
+ # ttesti<-t.test(x=c(triangle_sample_conv$mat[,,i]), y=c(triangle_pred_conv$mat[,,i]), paired = TRUE, alternative= "two.sided")
+  #ttest_conv[[i]]=ttesti
+#}
 ```
 
 Corresponding elements for all short subjects. Specifically: row2, col1
@@ -314,10 +314,30 @@ tmp_spred=vector()
 for (s in 1:length(short_ids)){
   tmp_spred[s]=triangle_pred_short$mat[2,1,s]
 }
+
+tmp_short=append(tmp_ssample,tmp_spred)
 ```
+
+
+
+WAIT FOR RESPONSE FROM CHRISTOF TO IMPLEMENT NEW TTEST
+```{r}
+tmp_psample=vector()
+for (s in 1:length(conventional_ids)){
+  tmp_psample[s]=triangle_sample_conv$mat[2,1,s]
+}
+
+tmp_ppred=vector()
+for (s in 1:length(conventional_ids)){
+  tmp_ppred[s]=triangle_pred_conv$mat[2,1,s]
+}
+
+tmp_conventional=append(tmp_psample,tmp_ppred)
+```
+
 t_test on those elements
 ```{r}
-ttest_pairwise_short=t.test(x=c(tmp_ssample), y=c(tmp_spred),paired=TRUE, alternative = "two.sided")
+ttest_pairwise_1el=t.test(x=c(tmp_short), y=c(tmp_conventional),paired=TRUE, alternative = "two.sided")
 ```
 
 
@@ -370,6 +390,8 @@ plot_conv
  - add legend
  - properly tick the axes
  - choose best function  for plotting
+ 
+ NEED TO RE-PERFORM TTEST
  
 
 
