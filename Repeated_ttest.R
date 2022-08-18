@@ -1,6 +1,6 @@
-Repeated_ttest=function(channels, ids_dim, triangle_mat_sample, triangle_mat_pred){
-  sample_corresp_elem=vector()
-  pred_corresp_elem=vector()
+Repeated_ttest=function(channels, ids_dim, list_triangle_Yt, list_triangle_Yc){
+  corresp_elem_Yt=vector()
+  corresp_elem_Yc=vector()
   ttest=list()
   i=1
   for (col in 1:(length(channels)-1)){
@@ -8,10 +8,10 @@ Repeated_ttest=function(channels, ids_dim, triangle_mat_sample, triangle_mat_pre
     for (row in (col+1):length(channels)){
       i=i
       for (s in 1:length(ids_dim)){
-        sample_corresp_elem[s]=triangle_mat_sample[row,col,s]
-        pred_corresp_elem[s]=triangle_mat_pred[row,col,s]
+        corresp_elem_Yt[s]=list_triangle_Yt[[s]][row,col]
+        corresp_elem_Yc[s]=list_triangle_Yc[[s]][row,col]
       }
-      test_current=t.test(x=c(sample_corresp_elem), y=c(pred_corresp_elem), paired=TRUE, alternative="two.sided")
+      test_current=t.test(x=c(corresp_elem_Yt), y=c(corresp_elem_Yc), paired=TRUE, alternative="two.sided")
       ttest[[i]]=list()
       ttest[[i]]=test_current
       i=i+1
