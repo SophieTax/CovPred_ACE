@@ -166,7 +166,19 @@ fit_cap_C_short$beta
 
 fit_cap_C_conv$beta
 ```
+Let's define treatment and control.
+Treatment "by nature": short sleeper
+Control: conventional sleeper
 
+So, for short sleepers:
+- Yt = values of sample covariance matrix
+- Yc = predicted covariance matrix
+
+for conventional sleepers:
+- Yt = predicted covariance matrix
+- Yc = sample covariance matrix
+
+(For every subject, Yt and Yc are matrices (either sample or predicted))
 
 ## Average sample covariance matrix per group of sleepers, per subject
 
@@ -225,166 +237,156 @@ cov_pred_short = cov_pred(fit_cap_C_short$gamma,fit_cap_C_short$beta,t_for_short
 cov_pred_conv = cov_pred(fit_cap_C_conv$gamma,fit_cap_C_conv$beta,t_for_conv,gg_inv_c)
 ```
 
-## Comparing
-Get upper triangles (first, try for 1 matrix)
+Generate Y_t and Y_c
 ```{r}
-source("get_triangle.R")
-t1<-get_triangle(sample_cov_short$cov[,,1])
-t1pred<-get_triangle(cov_pred_short$YY[,,1])
-#diff1<-t1-t1pred
+ids=append(short_ids,conventional_ids)
+
+Y_t=append(sample_cov_short,cov_pred_conv)
+names(Y_t)<-ids
+
+Y_c=append(cov_pred_short,sample_cov_conventional)
+names(Y_c)<-ids
 ```
 
-Repeat for all matrices, short sleepers
+
+## Comparing
+Get triangle matrix, for short sleepers
 ```{r}
+source("get_triangle.R")
 triangle_sample_short=list()
-triangle_sample_short$mat=array(dim = c(length(channel_names),length(channel_names),length(short_ids)))
 for (i in 1:length(short_ids)){
-  triangle_sample_short$mat[,,i]=get_triangle(sample_cov_short$cov[,,i])
+  triangle_sample_short[[i]]=get_triangle(sample_cov_short[[i]])
 }
 
 triangle_pred_short=list()
-triangle_pred_short$mat=array(dim = c(length(channel_names),length(channel_names),length(short_ids)))
 for (k in 1:length(short_ids)){
-  triangle_pred_short$mat[,,k]=get_triangle(cov_pred_short$YY[,,k])
+  triangle_pred_short[[k]]=get_triangle(cov_pred_short[[k]])
 }
 
-diff_short=list()
-diff_short$difference=array(dim=c(length(channel_names),length(channel_names),length(short_ids)))
-for (m in 1:length(short_ids)){
-  diff_short$difference[,,m]=triangle_sample_short$mat[,,m]-triangle_pred_short$mat[,,m]
-}
-diff_short$difference[,,1]
 ```
 
 Repeat for all matrices, conventional sleepers
 ```{r}
 triangle_sample_conv=list()
-triangle_sample_conv$mat=array(dim = c(length(channel_names),length(channel_names),length(conventional_ids)))
 for (i in 1:length(conventional_ids)){
-  triangle_sample_conv$mat[,,i]=get_triangle(sample_cov_conventional$cov[,,i])
+  triangle_sample_conv[[i]]=get_triangle(sample_cov_conventional[[i]])
 }
 
 triangle_pred_conv=list()
-triangle_pred_conv$mat=array(dim = c(length(channel_names),length(channel_names),length(conventional_ids)))
 for (k in 1:length(conventional_ids)){
-  triangle_pred_conv$mat[,,k]=get_triangle(cov_pred_conv$YY[,,k])
+  triangle_pred_conv[[k]]=get_triangle(cov_pred_conv[[k]])
 }
 
-diff_conv=list()
-diff_conv$difference=array(dim=c(length(channel_names),length(channel_names),length(conventional_ids)))
-for (m in 1:length(conventional_ids)){
-  diff_conv$difference[,,m]=triangle_sample_conv$mat[,,m]-triangle_pred_conv$mat[,,m]
+```
+
+```{r}
+Y_t_triangle=append(triangle_sample_short,triangle_pred_conv)
+Y_c_triangle=append(triangle_pred_short,triangle_sample_conv)
+Y_diff_triangle=list()
+for (m in 1:length(ids)){
+  Y_diff_triangle[[m]]=Y_t_triangle[[m]]-Y_c_triangle[[m]]
 }
-diff_conv$difference[,,1]
 ```
-
-Paired t-test, for 1 matrix
-
 ```{r}
-ttest1<-t.test(x=c(triangle_sample_short$mat[,,1]), y=c(triangle_sample_conv$mat[,,1]), paired = TRUE, alternative = "two.sided")
-ttest1
-```
-
-Paired t-test, all short
-```{r}
-#ttest=list()
-#for (i in 1:length(short_ids)){
- # ttesti<-t.test(x=c(triangle_sample_short$mat[,,i]), y=c(triangle_pred_short$mat[,,i]), paired = TRUE, alternative= "two.sided")
-  #ttest_short[[i]]=ttesti
-#}
-```
-
-Paired t_test, all conv.
-```{r}
-#ttest_conv=list()
-#for (i in 1:length(conventional_ids)){
- # ttesti<-t.test(x=c(triangle_sample_conv$mat[,,i]), y=c(triangle_pred_conv$mat[,,i]), paired = TRUE, alternative= "two.sided")
-  #ttest_conv[[i]]=ttesti
-#}
-```
-
-Corresponding elements for all short subjects. Specifically: row2, col1
-```{r}
-tmp_ssample=vector()
-for (s in 1:length(short_ids)){
-  tmp_ssample[s]=triangle_sample_short$mat[2,1,s]
-}
-
-tmp_spred=vector()
-for (s in 1:length(short_ids)){
-  tmp_spred[s]=triangle_pred_short$mat[2,1,s]
-}
-
-tmp_short=append(tmp_ssample,tmp_spred)
+names(Y_t_triangle)<-ids
+names(Y_c_triangle)<-ids
+names(Y_diff_triangle)<-ids
 ```
 
 
+Corresponding elements for all subjects. Specifically: row2, col1
 
-WAIT FOR RESPONSE FROM CHRISTOF TO IMPLEMENT NEW TTEST
 ```{r}
-tmp_psample=vector()
-for (s in 1:length(conventional_ids)){
-  tmp_psample[s]=triangle_sample_conv$mat[2,1,s]
+tmp_Yt=vector()
+for (s in 1:length(ids)){
+  tmp_Yt[s]=Y_t_triangle[[s]][2,1]
 }
 
-tmp_ppred=vector()
-for (s in 1:length(conventional_ids)){
-  tmp_ppred[s]=triangle_pred_conv$mat[2,1,s]
+tmp_Yc=vector()
+for (s in 1:length(ids)){
+  tmp_Yc[s]=Y_c_triangle[[s]][2,1]
 }
-
-tmp_conventional=append(tmp_psample,tmp_ppred)
 ```
 
 t_test on those elements
 ```{r}
-ttest_pairwise_1el=t.test(x=c(tmp_short), y=c(tmp_conventional),paired=TRUE, alternative = "two.sided")
+ttest_pairwise_1el=t.test(x=c(tmp_Yt), y=c(tmp_Yc),paired=TRUE, alternative = "two.sided")
+ttest_pairwise_1el
 ```
-
 
 Now, do the same for all matrix elements
 
 ```{r}
 source("Repeated_ttest.R")
-ttest_short_sleepers<-Repeated_ttest(channel_names,short_ids,triangle_sample_short$mat,triangle_pred_short$mat)
-ttest_conv_sleepers<-Repeated_ttest(channel_names,conventional_ids,triangle_sample_conv$mat,triangle_pred_conv$mat)
+paired_ttests<-Repeated_ttest(channel_names,ids,Y_t_triangle,Y_c_triangle)
+
 ```
+
 
 Prepare for BH procedure (multiple testing):
 
-pvalues short and conventional sleepers
+pvalues 
 
 ```{r}
 source("get_pvalues.R")
-pvalues_short=get_pvalues(ttest_short_sleepers)
-pvalues_conv=get_pvalues(ttest_conv_sleepers)
+list_pvalues=get_pvalues(paired_ttests)
 ```
 
 BH procedure
 ```{r}
 library(stats)
-BH_short<-p.adjust(pvalues_short, method = "BH")
-BH_conv<-p.adjust(pvalues_conv, method = "BH")
+BH_pvalues<-p.adjust(list_pvalues, method = "BH")
 ```
 
 ```{r}
 source("back_to_matrix.R")
-P_short=back_to_matrix(num_regions,channel_names,BH_short)
-P_conv=back_to_matrix(num_regions, channel_names, BH_conv)
+BH_matrix=back_to_matrix(num_regions,channel_names,BH_pvalues)
+colnames(BH_matrix)<-seq(1,15)
+BH_matrix
 ```
 
 ```{r}
-plot_short=image(x=(0:num_regions), y=(0:num_regions),z=P_short, xlab="regions", ylab="regions")
+BH_df <- as.data.frame(BH_matrix)
+BH_df$region_row <- seq(1,15)
+BH_df <- na.omit(melt(BH_df, 'region_row', variable.name="region_col"))
+BH_df$region_col <- factor(BH_df$region_col, levels=rev(levels(BH_df$region_col)))
+
+```
+```{r}
+ggplot(BH_df, aes(x=region_col, y=region_row)) +
+    ggtitle('Adjusted pvalues') +
+    theme_bw() +
+    xlab('Region') +
+    ylab('Region') +
+    geom_tile(aes(fill = value), color='white') +
+    scale_fill_gradient(low = 'darkblue', high = 'white', space = 'Lab') +
+    theme(axis.text.x=element_text(angle=90),
+          axis.ticks=element_blank(),
+          axis.line=element_blank(),
+          panel.border=element_blank(),
+          panel.grid.major=element_line(color='#eeeeee'))
+
+```
+
+
+
+```{r}
+plot_short=image(x=(0:num_regions), y=(0:num_regions),z=BH_matrix, xlab="regions", ylab="regions")
 grid(nx=num_regions, ny=num_regions,col="lightgray")
 #plot_short
 library(lattice)
 library(RColorBrewer)
-levelplot(P_short, xlab="regions", ylab="regions", col.regions=brewer.pal(6,"PuRd"))
+levelplot(BH_matrix, xlab="regions", ylab="regions", col.regions=brewer.pal(6,"PuRd"))
 ```
 ```{r}
 plot_conv=image(x=(0:num_regions), y=(0:num_regions),z=P_conv, xlab="regions", ylab="regions")
 grid(nx=num_regions, ny=num_regions,col="lightgray")
 plot_conv
 ```
+```{r}
+
+```
+
  Need to perfect plots:
  - find nice color palette
  - add legend
