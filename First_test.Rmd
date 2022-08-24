@@ -178,7 +178,28 @@ for conventional sleepers:
 - Yt = predicted covariance matrix
 - Yc = sample covariance matrix
 
-(For every subject, Yt and Yc are matrices (either sample or predicted))
+For every subject, Yt and Yc are covariance matrices (either sample or predicted)
+
+Our covariate X is PSQI_AmtSleep = amount of sleep in hours
+
+X=1 (treatment)
+X=0 (control)
+
+Average Causal Effect = E(Yi | Xi=1) - E(Yi | Xi=0)
+
+For every combination of brain regions, we're performing t-test between treatment and control covariance values, for all subjects. We're performing a two-sided t-test.
+
+So, our hypothesis test setup is the following:
+
+H(0): The mean covariance value between 2 brain regions across all subjects is the same under treatment and under control
+H(1): The mean cov. value ".." is different ".."
+
+This translates in:
+H(0): E(Yij | X=1) - E(Yij |X=0) = 0
+H(1): E(Yij | X=1) - E(Yij |X=0) != 0
+       
+where Yij is related to i-th and j-th brain regions, i != j  (we have a test for every combination of different regions).
+
 
 ## Average sample covariance matrix per group of sleepers, per subject
 
@@ -186,6 +207,11 @@ for conventional sleepers:
 source("sample_covariance.R")
 sample_cov_short<-sample_covariance(Y_c_short,channel_names,short_ids)
 sample_cov_conventional<-sample_covariance(Y_c_conv,channel_names,conventional_ids)
+```
+
+Average covariance matrix for control group (will need for simulating data)
+```{r}
+avg_cov_control<-Reduce("+", sample_cov_conventional)/length(sample_cov_conventional)
 ```
 
 
@@ -203,8 +229,8 @@ Unique X values in short and conventional and Sampling unseen X values for the 2
 
 ```{r}
 source("sample_unseen.R")
-t_for_short<-sample_unseen(X_short_subj$PSQI_AmtSleep,short_ids)
-t_for_conv<-sample_unseen(X_conv_subj$PSQI_AmtSleep,conventional_ids)
+t_for_short<-sample_unseen(X_conv_subj$PSQI_AmtSleep,short_ids)
+t_for_conv<-sample_unseen(X_short_subj$PSQI_AmtSleep,conventional_ids)
 
 ```
 
@@ -330,6 +356,7 @@ pvalues
 ```{r}
 source("get_pvalues.R")
 list_pvalues=get_pvalues(paired_ttests)
+list_pvalues=as.double(list_pvalues)
 ```
 
 BH procedure
@@ -337,6 +364,31 @@ BH procedure
 library(stats)
 BH_pvalues<-p.adjust(list_pvalues, method = "BH")
 ```
+
+```{r}
+p_vs_BH=tibble(list_pvalues,BH_pvalues)
+p_vs_BH
+```
+Find highest pvalue that's also lower than the critical level
+
+```{r}
+pvsBH_reduced <- p_vs_BH[which(p_vs_BH$list_pvalues <
+                                   p_vs_BH$BH_pvalues),]
+pvsBH_reduced
+acceptance_value=max(pvsBH_reduced$list_pvalues)
+acceptance_value
+```
+Find accepted ones
+```{r}
+pv_indexed=tibble(pv=list_pvalues, index=seq(1,105))
+pv_ind_ordered=pv_indexed%>%
+  arrange(pv)
+ranked=tibble(pv_ind_ordered,rank=seq(1,105))
+ranked
+```
+
+
+
 
 ```{r}
 source("back_to_matrix.R")
@@ -370,22 +422,7 @@ ggplot(BH_df, aes(x=region_col, y=region_row)) +
 
 
 
-```{r}
-plot_short=image(x=(0:num_regions), y=(0:num_regions),z=BH_matrix, xlab="regions", ylab="regions")
-grid(nx=num_regions, ny=num_regions,col="lightgray")
-#plot_short
-library(lattice)
-library(RColorBrewer)
-levelplot(BH_matrix, xlab="regions", ylab="regions", col.regions=brewer.pal(6,"PuRd"))
-```
-```{r}
-plot_conv=image(x=(0:num_regions), y=(0:num_regions),z=P_conv, xlab="regions", ylab="regions")
-grid(nx=num_regions, ny=num_regions,col="lightgray")
-plot_conv
-```
-```{r}
 
-```
 
  Need to perfect plots:
  - find nice color palette
