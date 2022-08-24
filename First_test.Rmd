@@ -434,6 +434,74 @@ ggplot(BH_df, aes(x=region_col, y=region_row)) +
  
 
 
+```{r}
+plot_cov = function(YY,limit_value) {
+  rownames(YY) = colnames(YY) = channel_names
+  get_upper_tri = function(mat) {
+    mat[lower.tri(mat)] = NA
+    mat
+  }
+  YY_long = melt(get_upper_tri(YY), na.rm = TRUE)
+  ggplot(data = YY_long, aes(Var2, Var1, fill = value)) +
+    geom_tile(color = "white") +
+    scale_fill_gradient2(low = "blue", high = "red", mid = "white",
+                         midpoint = 0, space = "Lab",
+                         limit = c(-limit_value,limit_value),
+                         name = "Covariance") +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1),
+          axis.title.x=element_blank(),
+          axis.title.y=element_blank(),
+          legend.position="right") +
+    coord_fixed()
+}
+scov_short_mean = apply(scov_short$YY,MARGIN = c(2,3),FUN = mean)
+scov_conventional_mean = apply(scov_conventional$YY,MARGIN = c(2,3),FUN = mean)
+limit_value = max(abs(c(scov_short_mean[lower.tri(scov_short_mean)] %>% abs %>% max,
+                        scov_conventional_mean[lower.tri(scov_conventional_mean)] %>% abs %>% max)))
+plot_cov(scov_short_mean,limit_value)
+plot_cov(scov_conventional_mean,limit_value)
+```
+
+```{r}
+plot_cov = function(mat){
+  #rownames(mat)=colnames(mat)=channel_names
+  #mat_long=melt(mat, na.rm = TRUE)
+  ggplot(data=mat, aes(region_col, region_row,fill=value))+
+    geom_tile(color="white")+
+    scale_fill_gradient2(low="blue", high="green", mid="white",
+                         midpoint = 0.5,space="Lab",
+                         name="Adjusted p-values")+
+    theme_minimal()+
+    theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1),
+          axis.title.x=element_blank(),
+          axis.title.y=element_blank(),
+          legend.position="right") +
+    coord_fixed()
+}
+
+plot_cov(BH_df)
+```
+```{r}
+abs_limit = BH_df$value %>% range
+plot_try=ggplot(data = BH_df, aes(region_col, region_row, fill = value)) +
+  geom_tile(color = "white") +
+  scale_fill_gradient2(low = "darkblue", high = "red", mid = "white",
+                         midpoint = 0.1, space = "Lab",
+                         limit = abs_limit,
+                         name = "Adjusted p-values") +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1),
+          axis.title.x=element_blank(),
+          axis.title.y=element_blank(),
+          legend.title=element_blank()) +
+    coord_fixed() +
+    ggtitle("Adjusted pvalues")
+
+plot_try
+```
+
+
 
 
 
