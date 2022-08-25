@@ -9,11 +9,11 @@ Analysis based on data from the WU-Minn HCP 1200 Subjects Data Release with four
 Two groups are defined: short and conventional sleepers, according to the classification from [[2]](#2).
 * short sleepers: average equal or less than 6 hours each night
 * conventional sleepers: average between 7 and 9 hours each night
-* 
+
 Once cleaned and grouped, we worked with the following data:
-**_Total subjcts:_** : 730, of which:
-**_Classified as short sleepers_** : 241
-**_Classified as conventional sleepers_** : 489
+**_Total subjcts:_** : 730, of which:.
+**_Classified as short sleepers_** : 241.
+**_Classified as conventional sleepers_** : 489.
 
 For every subject, we have the loaded timeseries consisting of 4800 timepoints for each of the 15 selected brain regions (thus resulting in 4800x15 matrices).
 
