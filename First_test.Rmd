@@ -276,49 +276,24 @@ names(Y_c)<-ids
 
 
 ## Comparing
-Get triangle matrix, for short sleepers
+
 ```{r}
 source("get_triangle.R")
-triangle_sample_short=list()
-for (i in 1:length(short_ids)){
-  triangle_sample_short[[i]]=get_triangle(sample_cov_short[[i]])
+Y_t_triangle=list()
+for (i in 1:length(ids)){
+  Y_t_triangle[[i]]=get_triangle(Y_t[[i]])
 }
 
-triangle_pred_short=list()
-for (k in 1:length(short_ids)){
-  triangle_pred_short[[k]]=get_triangle(cov_pred_short[[k]])
+Y_c_triangle=list()
+for (k in 1:length(ids)){
+  Y_t_triangle[[k]]=get_triangle(Y_c[[k]])
 }
 
-```
-
-Repeat for all matrices, conventional sleepers
-```{r}
-triangle_sample_conv=list()
-for (i in 1:length(conventional_ids)){
-  triangle_sample_conv[[i]]=get_triangle(sample_cov_conventional[[i]])
-}
-
-triangle_pred_conv=list()
-for (k in 1:length(conventional_ids)){
-  triangle_pred_conv[[k]]=get_triangle(cov_pred_conv[[k]])
-}
-
-```
-
-```{r}
-Y_t_triangle=append(triangle_sample_short,triangle_pred_conv)
-Y_c_triangle=append(triangle_pred_short,triangle_sample_conv)
-Y_diff_triangle=list()
-for (m in 1:length(ids)){
-  Y_diff_triangle[[m]]=Y_t_triangle[[m]]-Y_c_triangle[[m]]
-}
-```
-```{r}
 names(Y_t_triangle)<-ids
 names(Y_c_triangle)<-ids
-names(Y_diff_triangle)<-ids
-```
+#names(Y_diff_triangle)<-ids
 
+```
 
 Corresponding elements for all subjects. Specifically: row2, col1
 
