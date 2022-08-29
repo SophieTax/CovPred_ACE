@@ -146,14 +146,14 @@ Y_c_conv<- lapply(Y_conv, function(x) scale(x,center = TRUE, scale = FALSE))
 Fit of capReg, using CAP algorithm
 
 ```{r fitting cap}
-fit_cap_short<-capReg(Y_c_short,X_short_subset,method="CAP")
-fit_cap_conv<-capReg(Y_c_conv,X_conv_subset,method = "CAP")
+#fit_cap_short<-capReg(Y_c_short,X_short_subset,method="CAP")
+#fit_cap_conv<-capReg(Y_c_conv,X_conv_subset,method = "CAP")
 ```
 
 ```{r}
-fit_cap_short$beta
+#fit_cap_short$beta
 
-fit_cap_conv$beta
+#fit_cap_conv$beta
 ```
 Fit of capReg, using CAP-C algorithm
 ```{r}
@@ -239,8 +239,30 @@ Try for 1st and 2nd subject from short sleepers.
 source("cov_pred_subj.R")
 sig_hat_sj1<-cov_pred_subj(fit_cap_C_short$gamma,fit_cap_C_short$beta,t_for_short$X[1],gg_inv_s)
 sig_hat_sj2<-cov_pred_subj(fit_cap_C_short$gamma,fit_cap_C_short$beta,t_for_short$X[2],gg_inv_s)
+sig_hat_sj1<-as.matrix(sig_hat_sj1)
 sig_hat_sj2<-as.matrix(sig_hat_sj2)
+sig_hat_sj1
+sig_hat_sj2
 ```
+```{r}
+abs_limit = sig_hat_sj1[lower.tri(sig_hat_sj1)] %>% range
+sig_hat_sj1_long = melt(get_triangle(sig_hat_sj1, triangle="LOWER"), varnames = c("Rows","Cols"), na.rm = TRUE)
+p_cov_sub = ggplot(data = sig_hat_sj1_long, aes(Cols, Rows, fill = value)) +
+    geom_tile(color = "white") +
+    scale_fill_gradient2(low = "dark blue", high = "dark red", mid ="cornsilk", space = "Lab",
+                        
+                         name = "Correlation") +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1),
+          axis.title.x=element_blank(),
+          axis.title.y=element_blank(),
+          legend.title=element_blank()) +
+    coord_fixed() +
+  scale_y_reverse()+
+    ggtitle("Predicted Covariance Matrix for 1st subject")
+p_cov_sub
+```
+
 
 
 Extend to all subjects of both groups
@@ -276,47 +298,23 @@ names(Y_c)<-ids
 
 
 ## Comparing
-Get triangle matrix, for short sleepers
+
+
 ```{r}
 source("get_triangle.R")
-triangle_sample_short=list()
-for (i in 1:length(short_ids)){
-  triangle_sample_short[[i]]=get_triangle(sample_cov_short[[i]])
+Y_t_triangle1=list()
+for (i in 1:length(ids)){
+  Y_t_triangle1[[i]]=get_triangle(Y_t[[i]], triangle="LOWER")
 }
 
-triangle_pred_short=list()
-for (k in 1:length(short_ids)){
-  triangle_pred_short[[k]]=get_triangle(cov_pred_short[[k]])
+Y_c_triangle=list()
+for (k in 1:length(ids)){
+  Y_t_triangle[[k]]=get_triangle(Y_c[[k]], triangle="LOWER")
 }
 
-```
-
-Repeat for all matrices, conventional sleepers
-```{r}
-triangle_sample_conv=list()
-for (i in 1:length(conventional_ids)){
-  triangle_sample_conv[[i]]=get_triangle(sample_cov_conventional[[i]])
-}
-
-triangle_pred_conv=list()
-for (k in 1:length(conventional_ids)){
-  triangle_pred_conv[[k]]=get_triangle(cov_pred_conv[[k]])
-}
-
-```
-
-```{r}
-Y_t_triangle=append(triangle_sample_short,triangle_pred_conv)
-Y_c_triangle=append(triangle_pred_short,triangle_sample_conv)
-Y_diff_triangle=list()
-for (m in 1:length(ids)){
-  Y_diff_triangle[[m]]=Y_t_triangle[[m]]-Y_c_triangle[[m]]
-}
-```
-```{r}
 names(Y_t_triangle)<-ids
 names(Y_c_triangle)<-ids
-names(Y_diff_triangle)<-ids
+#names(Y_diff_triangle)<-ids
 ```
 
 
@@ -344,7 +342,8 @@ Now, do the same for all matrix elements
 
 ```{r}
 source("Repeated_ttest.R")
-paired_ttests<-Repeated_ttest(channel_names,ids,Y_t_triangle,Y_c_triangle)
+#paired_ttests<-Repeated_ttest(channel_names,ids,Y_t_triangle,Y_c_triangle)
+paired_ttests<-Repeated_ttest(channel_names,ids,triangle="LOWER",Y_t_triangle,Y_c_triangle)
 
 ```
 
@@ -358,6 +357,37 @@ source("get_pvalues.R")
 list_pvalues=get_pvalues(paired_ttests)
 list_pvalues=as.double(list_pvalues)
 ```
+
+```{r}
+source("back_to_matrix.R")
+pvalues_matrix=back_to_matrix(num_regions, channel_names, list_pvalues, triangle="LOWER")
+```
+
+
+```{r}
+rownames(pvalues_matrix) = colnames(pvalues_matrix) = channel_names
+abs1_limit = pvalues_matrix %>% range
+pval_mat_long = melt(pvalues_matrix, na.rm = TRUE)
+vec=c(0.05,0.1,0.25)
+otherwise = paste0(">",vec[2])
+#pval_mat_long$value = factor(pval_mat_long$value,levels = c(otherwise,vec))
+p_cov_sub1 = ggplot(data = pval_mat_long, aes(Var2, Var1, fill = value)) +
+    geom_tile(color = "white") +
+    #scale_fill_gradient2(low = "darkgreen", high = "darkred", mid ="pink", space = "Lab", midpoint=0.2,
+                         #name = "Correlation") +
+    scale_fill_brewer(name="p-values", palette = "Greens")+
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1),
+          axis.title.x=element_blank(),
+          axis.title.y=element_blank(),
+          legend.title=element_blank()) +
+    coord_fixed() +
+  scale_y_reverse()+
+    ggtitle("pvalues from ttest")
+p_cov_sub1
+```
+
+
 
 BH procedure
 ```{r}
@@ -392,7 +422,8 @@ ranked
 
 ```{r}
 source("back_to_matrix.R")
-BH_matrix=back_to_matrix(num_regions,channel_names,BH_pvalues)
+BH_matrix=back_to_matrix(num_regions, channel_names, BH_pvalues,triangle="LOWER")
+
 colnames(BH_matrix)<-seq(1,15)
 BH_matrix
 ```
