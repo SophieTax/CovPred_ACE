@@ -1,10 +1,12 @@
 ---
-title: "Internship: exploring causal inference in the context of brain connectivity "
-output: html_notebook
-author: Sophie Tascedda
+title: 'Internship: exploring causal inference in the context of brain connectivity '
+author: "Sophie Tascedda"
 date: "`r Sys.Date()`"
+output:
+  html_document:
+    df_print: paged
 params:
-  num_regions: "15"
+  num_regions: '15'
 ---
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -92,6 +94,16 @@ ts_conventional = subset(ts_subject_info,sleep_duration=="conventional")
 ts_conventional$timepoint = rep(1:(nrow(ts_conventional)/4),4)
 ```
 
+```{r}
+p_avg_sleep <- subset(subject_info,sleep_duration!="undefined") %>%
+  ggplot( aes(x=PSQI_AmtSleep, fill=sleep_duration)) +
+    geom_histogram( color="#e9ecef", alpha=0.6, position = 'identity') +
+    scale_fill_manual(values=c("#69b3a2", "#404080")) +
+    theme_minimal() +
+    labs(fill="")
+p_avg_sleep
+```
+
 ## Generate our Y and X:
 Y: timeseries data
 X: covariate(s)
@@ -116,6 +128,9 @@ X_conv_subj<-conventional_subj[order(conventional_subj$Subject),]
 Y_conv <- lapply(split(ts_conventional,ts_conventional$Subject), "[", TRUE, -c(17:24))
 Y_conv <- lapply(Y_conv, "[", TRUE, -c(1))
 ```
+
+
+
 
 
 Select 1 covariate (here "PSQI_AmtSleep") and convert Y and X to matrices (required by capReg)
@@ -207,7 +222,30 @@ where Yij is related to i-th and j-th brain regions, i != j  (we have a test for
 source("sample_covariance.R")
 sample_cov_short<-sample_covariance(Y_c_short,channel_names,short_ids)
 sample_cov_conventional<-sample_covariance(Y_c_conv,channel_names,conventional_ids)
+sig_samp_ss1<-as.matrix(sample_cov_short[[1]])
+colnames(sig_samp_ss1)=rownames(sig_samp_ss1)=seq(1:15)
+sig_samp_cs1<-sample_cov_conventional[[1]]
 ```
+
+```{r}
+source("get_triangle.R")
+sig_samps1_long = melt(get_triangle(sig_samp_ss1, triangle="LOWER"), varnames = c("Rows","Cols"), na.rm = TRUE)
+p_cov_ss1 = ggplot(data = sig_samps1_long, aes(Cols, Rows, fill = value)) +
+    geom_tile(color = "white") +
+    scale_fill_gradient2(low = "dark blue", high = "dark red", mid ="cornsilk", space = "Lab",
+                        
+                         name = "covariance") +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1),
+          axis.title.x=element_blank(),
+          axis.title.y=element_blank(),
+          legend.title=element_blank()) +
+    coord_fixed() +
+  scale_y_reverse()+
+    ggtitle("Sample covariance 1st short sleeper")
+p_cov_ss1
+```
+
 
 Average covariance matrix for control group (will need for simulating data)
 ```{r}
@@ -302,14 +340,14 @@ names(Y_c)<-ids
 
 ```{r}
 source("get_triangle.R")
-Y_t_triangle1=list()
+Y_t_triangle=list()
 for (i in 1:length(ids)){
-  Y_t_triangle1[[i]]=get_triangle(Y_t[[i]], triangle="LOWER")
+  Y_t_triangle[[i]]=get_triangle(Y_t[[i]], triangle="LOWER")
 }
 
 Y_c_triangle=list()
 for (k in 1:length(ids)){
-  Y_t_triangle[[k]]=get_triangle(Y_c[[k]], triangle="LOWER")
+  Y_c_triangle[[k]]=get_triangle(Y_c[[k]], triangle="LOWER")
 }
 
 names(Y_t_triangle)<-ids
@@ -359,23 +397,30 @@ list_pvalues=as.double(list_pvalues)
 ```
 
 ```{r}
+pv_indexed=tibble(pv=list_pvalues, index=seq(1,105))
+pv_ind_ordered=pv_indexed%>%
+  arrange(pv)
+count(filter(pv_ind_ordered, pv_ind_ordered$pv<0.05))
+```
+So, 91 out of 105 pvalues are <0.05, leading to 91/105 rejections.
+Let's see for which regions
+
+```{r}
 source("back_to_matrix.R")
 pvalues_matrix=back_to_matrix(num_regions, channel_names, list_pvalues, triangle="LOWER")
+head(pvalues_matrix)
 ```
 
 
 ```{r}
-rownames(pvalues_matrix) = colnames(pvalues_matrix) = channel_names
-abs1_limit = pvalues_matrix %>% range
-pval_mat_long = melt(pvalues_matrix, na.rm = TRUE)
-vec=c(0.05,0.1,0.25)
-otherwise = paste0(">",vec[2])
-#pval_mat_long$value = factor(pval_mat_long$value,levels = c(otherwise,vec))
-p_cov_sub1 = ggplot(data = pval_mat_long, aes(Var2, Var1, fill = value)) +
+pval_mat_long = melt(pvalues_matrix, varnames = c("Rows","Cols"), na.rm = TRUE)
+pval_mat_long <- transform(
+  pval_mat_long, levels= ifelse(value>0.05, "acc", "rej: <0.05"))
+pval_acc_plot = ggplot(data = pval_mat_long, aes(Cols, Rows, fill = levels)) +
     geom_tile(color = "white") +
-    #scale_fill_gradient2(low = "darkgreen", high = "darkred", mid ="pink", space = "Lab", midpoint=0.2,
-                         #name = "Correlation") +
-    scale_fill_brewer(name="p-values", palette = "Greens")+
+    scale_colour_steps(low ="red", high = "green", space = "Lab",
+                        
+                         name = "Pvalues") +
     theme_minimal() +
     theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1),
           axis.title.x=element_blank(),
@@ -383,10 +428,12 @@ p_cov_sub1 = ggplot(data = pval_mat_long, aes(Var2, Var1, fill = value)) +
           legend.title=element_blank()) +
     coord_fixed() +
   scale_y_reverse()+
-    ggtitle("pvalues from ttest")
-p_cov_sub1
-```
+    ggtitle("Pvalues from ttests (acc vs rej)")
 
+
+
+pval_acc_plot
+```
 
 
 BH procedure
@@ -396,27 +443,57 @@ BH_pvalues<-p.adjust(list_pvalues, method = "BH")
 ```
 
 ```{r}
-p_vs_BH=tibble(list_pvalues,BH_pvalues)
+p_vs_BH=tibble(list_pvalues,BH_pvalues, index=seq(1,105))
 p_vs_BH
+p_vs_BH_ord=p_vs_BH%>%
+  arrange(list_pvalues)
+p_vs_BH_ord
 ```
 Find highest pvalue that's also lower than the critical level
 
 ```{r}
-pvsBH_reduced <- p_vs_BH[which(p_vs_BH$list_pvalues <
-                                   p_vs_BH$BH_pvalues),]
-pvsBH_reduced
-acceptance_value=max(pvsBH_reduced$list_pvalues)
+pvsBH_reduced=list(orig_p=numeric(), adj_p=numeric(), ind=numeric())
+j=1
+for (i in 1:length(p_vs_BH_ord$list_pvalues)){
+  if (p_vs_BH_ord$list_pvalues[i]<p_vs_BH_ord$BH_pvalues[i]) {
+    pvsBH_reduced$orig_p[j]=p_vs_BH_ord$list_pvalues[i]
+    pvsBH_reduced$adj_p[j]=p_vs_BH_ord$BH_pvalues[i]
+    pvsBH_reduced$ind[j]=p_vs_BH_ord$index[i]
+    j=j+1
+  }
+}
+
+#pvsBH_reduced=tibble(original_p,adjusted_p, ind)
+pvsBH_reduced=as_tibble(pvsBH_reduced)
+
+acceptance_value=as.numeric(max(pvsBH_reduced$orig_p))
+
+acc_index=pvsBH_reduced$ind[pvsBH_reduced$orig_p==acceptance_value]
+#pvsBH_reduced
 acceptance_value
 ```
-Find accepted ones
 ```{r}
-pv_indexed=tibble(pv=list_pvalues, index=seq(1,105))
-pv_ind_ordered=pv_indexed%>%
-  arrange(pv)
-ranked=tibble(pv_ind_ordered,rank=seq(1,105))
-ranked
-```
+pval_mat_long2 = melt(pvalues_matrix, varnames = c("Rows","Cols"), na.rm = TRUE)
+pval_mat_long2 <- transform(
+  pval_mat_long2, levels= ifelse(value>acceptance_value, "acc", "rej: <0.7632957"))
+pval_acc_plot2 = ggplot(data = pval_mat_long2, aes(Cols, Rows, fill = levels)) +
+    geom_tile(color = "white") +
+    scale_colour_steps(low ="red", high = "green", space = "Lab",
+                        
+                         name = "Pvalues") +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1),
+          axis.title.x=element_blank(),
+          axis.title.y=element_blank(),
+          legend.title=element_blank()) +
+    coord_fixed() +
+  scale_y_reverse()+
+    ggtitle("Pvalues after BH correction (acc vs rej)")
 
+
+
+pval_acc_plot2
+```
 
 
 
@@ -424,8 +501,8 @@ ranked
 source("back_to_matrix.R")
 BH_matrix=back_to_matrix(num_regions, channel_names, BH_pvalues,triangle="LOWER")
 
-colnames(BH_matrix)<-seq(1,15)
-BH_matrix
+#colnames(BH_matrix)<-seq(1,15)
+#BH_matrix
 ```
 
 ```{r}
@@ -433,8 +510,47 @@ BH_df <- as.data.frame(BH_matrix)
 BH_df$region_row <- seq(1,15)
 BH_df <- na.omit(melt(BH_df, 'region_row', variable.name="region_col"))
 BH_df$region_col <- factor(BH_df$region_col, levels=rev(levels(BH_df$region_col)))
+BH_df$index=seq(1,length(list_pvalues))
+BH_df
 
 ```
+
+```{r}
+BH_matrix_long = melt(BH_matrix, varnames = c("Rows","Cols"), na.rm = TRUE)
+BH_plot = ggplot(data = BH_matrix_long,aes(Cols, Rows, fill = value)) +
+    geom_tile(color = "white") +
+    scale_fill_stepsn(colours = c("darkblue", "lightblue","lightpink", "cornsilk"), space = "Lab", breaks=c( 0.05,0.2,0.5), 
+                        
+                         name = "Adjusted Pvalues") +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1),
+          axis.title.x=element_blank(),
+          axis.title.y=element_blank(),
+          legend.title=element_blank()) +
+    coord_fixed() +
+  scale_y_reverse()+
+    ggtitle("BH adjusted p-values")
+
+pval_mat_long = melt(pvalues_matrix, varnames = c("Rows","Cols"), na.rm = TRUE)
+pval_plot = ggplot(data = pval_mat_long,aes(Cols, Rows, fill = value)) +
+    geom_tile(color = "white") +
+    scale_fill_stepsn(colours = c("darkblue", "lightblue", "lightpink","cornsilk"), space = "Lab", breaks=c( 0.05,0.2,0.5), 
+                        
+                         name = "Pvalues") +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1),
+          axis.title.x=element_blank(),
+          axis.title.y=element_blank(),
+          legend.title=element_blank()) +
+    coord_fixed() +
+  scale_y_reverse()+
+    ggtitle("p-values")
+
+pval_plot
+BH_plot
+```
+
+
 ```{r}
 ggplot(BH_df, aes(x=region_col, y=region_row)) +
     ggtitle('Adjusted pvalues') +
@@ -465,72 +581,6 @@ ggplot(BH_df, aes(x=region_col, y=region_row)) +
  
 
 
-```{r}
-plot_cov = function(YY,limit_value) {
-  rownames(YY) = colnames(YY) = channel_names
-  get_upper_tri = function(mat) {
-    mat[lower.tri(mat)] = NA
-    mat
-  }
-  YY_long = melt(get_upper_tri(YY), na.rm = TRUE)
-  ggplot(data = YY_long, aes(Var2, Var1, fill = value)) +
-    geom_tile(color = "white") +
-    scale_fill_gradient2(low = "blue", high = "red", mid = "white",
-                         midpoint = 0, space = "Lab",
-                         limit = c(-limit_value,limit_value),
-                         name = "Covariance") +
-    theme_minimal() +
-    theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1),
-          axis.title.x=element_blank(),
-          axis.title.y=element_blank(),
-          legend.position="right") +
-    coord_fixed()
-}
-scov_short_mean = apply(scov_short$YY,MARGIN = c(2,3),FUN = mean)
-scov_conventional_mean = apply(scov_conventional$YY,MARGIN = c(2,3),FUN = mean)
-limit_value = max(abs(c(scov_short_mean[lower.tri(scov_short_mean)] %>% abs %>% max,
-                        scov_conventional_mean[lower.tri(scov_conventional_mean)] %>% abs %>% max)))
-plot_cov(scov_short_mean,limit_value)
-plot_cov(scov_conventional_mean,limit_value)
-```
-
-```{r}
-plot_cov = function(mat){
-  #rownames(mat)=colnames(mat)=channel_names
-  #mat_long=melt(mat, na.rm = TRUE)
-  ggplot(data=mat, aes(region_col, region_row,fill=value))+
-    geom_tile(color="white")+
-    scale_fill_gradient2(low="blue", high="green", mid="white",
-                         midpoint = 0.5,space="Lab",
-                         name="Adjusted p-values")+
-    theme_minimal()+
-    theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1),
-          axis.title.x=element_blank(),
-          axis.title.y=element_blank(),
-          legend.position="right") +
-    coord_fixed()
-}
-
-plot_cov(BH_df)
-```
-```{r}
-abs_limit = BH_df$value %>% range
-plot_try=ggplot(data = BH_df, aes(region_col, region_row, fill = value)) +
-  geom_tile(color = "white") +
-  scale_fill_gradient2(low = "darkblue", high = "red", mid = "white",
-                         midpoint = 0.1, space = "Lab",
-                         limit = abs_limit,
-                         name = "Adjusted p-values") +
-    theme_minimal() +
-    theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1),
-          axis.title.x=element_blank(),
-          axis.title.y=element_blank(),
-          legend.title=element_blank()) +
-    coord_fixed() +
-    ggtitle("Adjusted pvalues")
-
-plot_try
-```
 
 
 
