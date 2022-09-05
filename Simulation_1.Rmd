@@ -11,6 +11,116 @@ When sampling from multivariate normal distribution:
   - Covariance: average covariance matrix from control group in original experiment
 
 ```{r}
+source("sample_unseen.R")
+source("sample_covariance.R")
+source("gamma_inv.R")
+source("cov_pred.R")
+source("get_triangle.R")
+source("Repeated_ttest.R")
+source("get_pvalues.R")
+
+
+n=10
+rejections=vector(length = n)
+rejections_BH=vector(length = n)
+for (i in 1:n){
+  mu_zeros=replicate(15,0)
+  sampled<-mvrnorm(n = 4800, mu=mu_zeros,Sigma=avg_cov_control)
+  head(sampled)
+  lis <- lapply(1:730, mvrnorm, n=4800, mu=mu_zeros, Sigma=avg_cov_control)
+  X_for_short<-sample_unseen(X_short_subj$PSQI_AmtSleep,short_ids)
+  X_for_conv<-sample_unseen(X_conv_subj$PSQI_AmtSleep,conventional_ids)
+  X_for_short<-cbind(inter = 1, X_for_short)
+  X_for_short<-X_for_short[,-3]
+  X_for_conv<-cbind(inter = 1, X_for_conv)
+  X_for_conv<-X_for_conv[,-3]
+  Y_new_short<-lis[1:241]
+  Y_new_conventional<-lis[242:730]
+  
+  fit_short<-capReg(Y_new_short,data.matrix(X_for_short),method="CAP-C")
+  fit_conv<-capReg(Y_new_conventional,data.matrix(X_for_conv),method = "CAP-C")
+  
+  sample_cov_short_new<-sample_covariance(Y_new_short,channel_names,short_ids)
+  sample_cov_conventional_new<-sample_covariance(Y_new_conventional,channel_names,conventional_ids)
+  
+  gg_inv_s_new<-gamma_inv(fit_short$gamma)
+  gg_inv_c_new<-gamma_inv(fit_conv$gamma)
+  
+  t_for_short_new<-sample_unseen(X_for_short$X,short_ids)
+  t_for_conv_new<-sample_unseen(X_for_conv$X,conventional_ids)
+  
+  cov_pred_short_new = cov_pred(fit_short$gamma,fit_short$beta,t_for_short_new,gg_inv_s_new)
+  cov_pred_conv_new = cov_pred(fit_conv$gamma,fit_conv$beta,t_for_conv_new,gg_inv_c_new)
+  
+  ids=append(short_ids,conventional_ids)
+
+  Y_t_new=append(sample_cov_short_new,cov_pred_conv_new)
+  names(Y_t_new)<-ids
+
+  Y_c_new=append(cov_pred_short_new,sample_cov_conventional_new)
+  names(Y_c_new)<-ids
+  
+  
+  Y_t_triangle_new=list()
+  for (j in 1:length(ids)){
+    Y_t_triangle_new[[j]]=get_triangle(Y_t_new[[j]], triangle="LOWER")
+  }
+
+  Y_c_triangle_new=list()
+  for (k in 1:length(ids)){
+    Y_c_triangle_new[[k]]=get_triangle(Y_c_new[[k]], triangle="LOWER")
+  }
+
+  names(Y_t_triangle_new)<-ids
+  names(Y_c_triangle_new)<-ids
+  
+  paired_ttests_new<-Repeated_ttest(channel_names,ids,triangle="LOWER",Y_t_triangle_new,Y_c_triangle_new)
+  
+  
+  list_pvalues_new=get_pvalues(paired_ttests_new)
+  list_pvalues_new=as.double(list_pvalues_new)
+  
+  pv_indexed_new=tibble(pv=list_pvalues_new, index=seq(1,105))
+  pv_ind_ordered_new=pv_indexed_new%>%
+  arrange(pv)
+  count1=count(filter(pv_ind_ordered_new, pv_ind_ordered_new$pv<0.05))
+  
+  BH_pvalues_new<-p.adjust(list_pvalues_new, method = "BH")
+  
+  p_vs_BH_new=tibble(list_pvalues_new,BH_pvalues_new, index=seq(1,105))
+#p_vs_BH_new
+  p_vs_BH_ord_new=p_vs_BH_new%>%
+    arrange(list_pvalues_new)
+  
+  pvsBH_reduced_new=list(orig_p=numeric(), adj_p=numeric(), ind=numeric())
+  j=1
+  for (p in 1:length(p_vs_BH_ord_new$list_pvalues_new)){
+    if (p_vs_BH_ord_new$list_pvalues_new[p]<p_vs_BH_ord_new$BH_pvalues_new[p]) {
+      pvsBH_reduced_new$orig_p[j]=p_vs_BH_ord_new$list_pvalues_new[p]
+      pvsBH_reduced_new$adj_p[j]=p_vs_BH_ord_new$BH_pvalues_new[p]
+      pvsBH_reduced_new$ind[j]=p_vs_BH_ord_new$index[p]
+      j=j+1
+    }
+  }
+
+#pvsBH_reduced=tibble(original_p,adjusted_p, ind)
+  pvsBH_reduced_new=as_tibble(pvsBH_reduced_new)
+
+  acceptance_value_new=as.numeric(max(pvsBH_reduced_new$orig_p))
+
+  acc_index_new=pvsBH_reduced_new$ind[pvsBH_reduced_new$orig_p==acceptance_value_new]
+  #pvsBH_reduced
+  #acceptance_value_new
+  count2=count(filter(p_vs_BH_ord_new, p_vs_BH_ord_new$list_pvalues_new<=acceptance_value_new))
+  rejections[i]=count1
+  rejections_BH[i]=count2
+  i=i+1
+}
+```
+
+
+
+```{r}
 mu_zeros=replicate(15,0)
 sampled<-mvrnorm(n = 4800, mu=mu_zeros,Sigma=avg_cov_control)
 head(sampled)
@@ -83,50 +193,27 @@ Y_c_new=append(cov_pred_short_new,sample_cov_conventional_new)
 names(Y_c_new)<-ids
 ```
 
+
 ```{r}
 source("get_triangle.R")
-triangle_sample_short_new=list()
-for (i in 1:length(short_ids)){
-  triangle_sample_short_new[[i]]=get_triangle(sample_cov_short_new[[i]])
+Y_t_triangle_new=list()
+for (i in 1:length(ids)){
+  Y_t_triangle_new[[i]]=get_triangle(Y_t_new[[i]], triangle="LOWER")
 }
 
-triangle_pred_short_new=list()
-for (k in 1:length(short_ids)){
-  triangle_pred_short_new[[k]]=get_triangle(cov_pred_short_new[[k]])
+Y_c_triangle_new=list()
+for (k in 1:length(ids)){
+  Y_c_triangle_new[[k]]=get_triangle(Y_c_new[[k]], triangle="LOWER")
 }
 
-```
-
-```{r}
-triangle_sample_conv_new=list()
-for (i in 1:length(conventional_ids)){
-  triangle_sample_conv_new[[i]]=get_triangle(sample_cov_conventional_new[[i]])
-}
-
-triangle_pred_conv_new=list()
-for (k in 1:length(conventional_ids)){
-  triangle_pred_conv_new[[k]]=get_triangle(cov_pred_conv_new[[k]])
-}
-
-```
-
-```{r}
-Y_t_triangle_new=append(triangle_sample_short_new,triangle_pred_conv_new)
-Y_c_triangle_new=append(triangle_pred_short_new,triangle_sample_conv_new)
-Y_diff_triangle_new=list()
-for (m in 1:length(ids)){
-  Y_diff_triangle_new[[m]]=Y_t_triangle_new[[m]]-Y_c_triangle_new[[m]]
-}
-```
-```{r}
 names(Y_t_triangle_new)<-ids
 names(Y_c_triangle_new)<-ids
-names(Y_diff_triangle_new)<-ids
 ```
+
 
 ```{r}
 source("Repeated_ttest.R")
-paired_ttests_new<-Repeated_ttest(channel_names,ids,Y_t_triangle_new,Y_c_triangle_new)
+paired_ttests_new<-Repeated_ttest(channel_names,ids,triangle="LOWER",Y_t_triangle_new,Y_c_triangle_new)
 
 ```
 
@@ -136,6 +223,20 @@ list_pvalues_new=get_pvalues(paired_ttests_new)
 list_pvalues_new=as.double(list_pvalues_new)
 ```
 
+
+```{r}
+source("back_to_matrix.R")
+pvalues_matrix_new=back_to_matrix(num_regions, channel_names, list_pvalues_new, triangle="LOWER")
+#head(pvalues_matrix)
+```
+
+```{r}
+pv_indexed_new=tibble(pv=list_pvalues_new, index=seq(1,105))
+pv_ind_ordered_new=pv_indexed_new%>%
+  arrange(pv)
+count(filter(pv_ind_ordered_new, pv_ind_ordered_new$pv<0.05))
+```
+
 BH procedure
 ```{r}
 library(stats)
@@ -143,71 +244,120 @@ BH_pvalues_new<-p.adjust(list_pvalues_new, method = "BH")
 ```
 
 ```{r}
-p_vs_BH_new=tibble(list_pvalues_new,BH_pvalues_new)
-p_vs_BH_new
+p_vs_BH_new=tibble(list_pvalues_new,BH_pvalues_new, index=seq(1,105))
+#p_vs_BH_new
+p_vs_BH_ord_new=p_vs_BH_new%>%
+  arrange(list_pvalues_new)
+p_vs_BH_ord_new
 ```
 
+Find highest pvalue that's also lower than the critical level
+
 ```{r}
-pvsBH_reduced_new <- p_vs_BH_new[which(p_vs_BH_new$list_pvalues_new <
-                                   p_vs_BH_new$BH_pvalues_new),]
-pvsBH_reduced_new
-acceptance_value_new=max(pvsBH_reduced_new$list_pvalues_new)
+pvsBH_reduced_new=list(orig_p=numeric(), adj_p=numeric(), ind=numeric())
+j=1
+for (i in 1:length(p_vs_BH_ord_new$list_pvalues_new)){
+  if (p_vs_BH_ord_new$list_pvalues_new[i]<p_vs_BH_ord_new$BH_pvalues_new[i]) {
+    pvsBH_reduced_new$orig_p[j]=p_vs_BH_ord_new$list_pvalues_new[i]
+    pvsBH_reduced_new$adj_p[j]=p_vs_BH_ord_new$BH_pvalues_new[i]
+    pvsBH_reduced_new$ind[j]=p_vs_BH_ord_new$index[i]
+    j=j+1
+  }
+}
+
+#pvsBH_reduced=tibble(original_p,adjusted_p, ind)
+pvsBH_reduced_new=as_tibble(pvsBH_reduced_new)
+
+acceptance_value_new=as.numeric(max(pvsBH_reduced_new$orig_p))
+
+acc_index_new=pvsBH_reduced_new$ind[pvsBH_reduced_new$orig_p==acceptance_value_new]
+pvsBH_reduced
 acceptance_value_new
 ```
 ```{r}
-pv_indexed_new=tibble(pv=list_pvalues_new, index=seq(1,105))
-pv_ind_ordered_new=pv_indexed_new%>%
-  arrange(pv)
-ranked_new=tibble(pv_ind_ordered_new,rank=seq(1,105))
-ranked_new
-```
-```{r}
 source("back_to_matrix.R")
-BH_matrix_new=back_to_matrix(num_regions,channel_names,BH_pvalues_new)
-colnames(BH_matrix_new)<-seq(1,15)
-BH_matrix_new
-```
-```{r}
-BH_df_new <- as.data.frame(BH_matrix_new)
-BH_df_new$region_row <- seq(1,15)
-BH_df_new <- na.omit(melt(BH_df_new, 'region_row', variable.name="region_col"))
-BH_df_new$region_col <- factor(BH_df_new$region_col, levels=rev(levels(BH_df_new$region_col)))
+BH_matrix_new=back_to_matrix(num_regions, channel_names, BH_pvalues_new,triangle="LOWER")
 
+#colnames(BH_matrix)<-seq(1,15)
+#BH_matrix
 ```
-```{r}
-ggplot(BH_df_new, aes(x=region_col, y=region_row)) +
-    ggtitle('Adjusted pvalues') +
-    theme_bw() +
-    xlab('Region') +
-    ylab('Region') +
-    geom_tile(aes(fill = value), color='white') +
-    scale_fill_gradient(low = 'darkblue', high = 'white', space = 'Lab') +
-    theme(axis.text.x=element_text(angle=90),
-          axis.ticks=element_blank(),
-          axis.line=element_blank(),
-          panel.border=element_blank(),
-          panel.grid.major=element_line(color='#eeeeee'))
 
-```
 ```{r}
-plot_cov = function(mat){
-  #rownames(mat)=colnames(mat)=channel_names
-  #mat_long=melt(mat, na.rm = TRUE)
-  ggplot(data=mat, aes(region_col, region_row,fill=value))+
-    geom_tile(color="white")+
-    scale_fill_gradient2(low="darkblue", high="red", mid="white",
-                         midpoint = 0.1,space="Lab",
-                         name="Adjusted p-values")+
-    theme_minimal()+
+BH_matrix_long_new = melt(BH_matrix_new, varnames = c("Rows","Cols"), na.rm = TRUE)
+BH_plot_new = ggplot(data = BH_matrix_long_new,aes(Cols, Rows, fill = BH_matrix_long_new$value)) +
+    geom_tile(color = "white") +
+    scale_fill_stepsn(colours = c("darkblue", "lightblue","lightpink", "cornsilk"), space = "Lab", breaks=c( 0.05,0.2,0.5), 
+                        
+                         name = "Adjusted Pvalues") +
+    theme_minimal() +
     theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1),
           axis.title.x=element_blank(),
           axis.title.y=element_blank(),
-          legend.position="right") +
-    coord_fixed()
-}
+          legend.title=element_blank()) +
+    coord_fixed() +
+  scale_y_reverse()+
+    ggtitle("BH adjusted p-values")
 
-plot_cov(BH_df_new)
+pval_mat_long_new = melt(pvalues_matrix_new, varnames = c("Rows","Cols"), na.rm = TRUE)
+pval_plot_new = ggplot(data = pval_mat_long_new,aes(Cols, Rows, fill = pval_mat_long_new$value)) +
+    geom_tile(color = "white") +
+    scale_fill_stepsn(colours = c("darkblue", "lightblue", "lightpink","cornsilk"), space = "Lab", breaks=c( 0.05,0.2,0.5), 
+                        
+                         name = "Pvalues") +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1),
+          axis.title.x=element_blank(),
+          axis.title.y=element_blank(),
+          legend.title=element_blank()) +
+    coord_fixed() +
+  scale_y_reverse()+
+    ggtitle("p-values")
+
+pval_plot_new
+BH_plot_new
 ```
+```{r}
+pval_mat_long_new2 = melt(pvalues_matrix_new, varnames = c("Rows","Cols"), na.rm = TRUE)
+pval_mat_long_new2 <- transform(
+  pval_mat_long_new2, levels= ifelse(value>0.05, "acc", "rej: <0.05"))
+pval_acc_plot_new = ggplot(data = pval_mat_long_new2, aes(Cols, Rows, fill = levels)) +
+    geom_tile(color = "white") +
+    scale_colour_steps(low ="red", high = "green", space = "Lab",
+                        
+                         name = "Pvalues") +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1),
+          axis.title.x=element_blank(),
+          axis.title.y=element_blank(),
+          legend.title=element_blank()) +
+    coord_fixed() +
+  scale_y_reverse()+
+    ggtitle("Pvalues from ttests (acc vs rej)")
+
+pval_mat_long_new3 = melt(pvalues_matrix_new, varnames = c("Rows","Cols"), na.rm = TRUE)
+pval_mat_long_new3 <- transform(
+  pval_mat_long_new3, levels= ifelse(value>acceptance_value_new, "acc", "rej: <0.7632957"))
+pval_acc_plot_new2 = ggplot(data = pval_mat_long_new3, aes(Cols, Rows, fill = levels)) +
+    geom_tile(color = "white") +
+    scale_colour_steps(low ="red", high = "green", space = "Lab",
+                        
+                         name = "Pvalues") +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1),
+          axis.title.x=element_blank(),
+          axis.title.y=element_blank(),
+          legend.title=element_blank()) +
+    coord_fixed() +
+  scale_y_reverse()+
+    ggtitle("Pvalues after BH correction (acc vs rej)")
+
+
+
+pval_acc_plot_new
+
+pval_acc_plot_new2
+```
+
 
 
 
