@@ -11,8 +11,113 @@ When sampling from multivariate normal distribution:
   - Covariance: average covariance matrix from control group in original experiment
 
 ```{r}
-set.seed(488)
+source("sample_unseen.R")
+source("sample_covariance.R")
+source("gamma_inv.R")
+source("cov_pred.R")
+source("get_triangle.R")
+source("Repeated_ttest.R")
+source("get_pvalues.R")
+
+
+n=10
+rejections=vector(length = n)
+rejections_BH=vector(length = n)
+for (i in 1:n){
+  mu_zeros=replicate(15,0)
+  sampled<-mvrnorm(n = 4800, mu=mu_zeros,Sigma=avg_cov_control)
+  head(sampled)
+  lis <- lapply(1:730, mvrnorm, n=4800, mu=mu_zeros, Sigma=avg_cov_control)
+  X_for_short<-sample_unseen(X_short_subj$PSQI_AmtSleep,short_ids)
+  X_for_conv<-sample_unseen(X_conv_subj$PSQI_AmtSleep,conventional_ids)
+  X_for_short<-cbind(inter = 1, X_for_short)
+  X_for_short<-X_for_short[,-3]
+  X_for_conv<-cbind(inter = 1, X_for_conv)
+  X_for_conv<-X_for_conv[,-3]
+  Y_new_short<-lis[1:241]
+  Y_new_conventional<-lis[242:730]
+  
+  fit_short<-capReg(Y_new_short,data.matrix(X_for_short),method="CAP-C")
+  fit_conv<-capReg(Y_new_conventional,data.matrix(X_for_conv),method = "CAP-C")
+  
+  sample_cov_short_new<-sample_covariance(Y_new_short,channel_names,short_ids)
+  sample_cov_conventional_new<-sample_covariance(Y_new_conventional,channel_names,conventional_ids)
+  
+  gg_inv_s_new<-gamma_inv(fit_short$gamma)
+  gg_inv_c_new<-gamma_inv(fit_conv$gamma)
+  
+  t_for_short_new<-sample_unseen(X_for_short$X,short_ids)
+  t_for_conv_new<-sample_unseen(X_for_conv$X,conventional_ids)
+  
+  cov_pred_short_new = cov_pred(fit_short$gamma,fit_short$beta,t_for_short_new,gg_inv_s_new)
+  cov_pred_conv_new = cov_pred(fit_conv$gamma,fit_conv$beta,t_for_conv_new,gg_inv_c_new)
+  
+  ids=append(short_ids,conventional_ids)
+
+  Y_t_new=append(sample_cov_short_new,cov_pred_conv_new)
+  names(Y_t_new)<-ids
+
+  Y_c_new=append(cov_pred_short_new,sample_cov_conventional_new)
+  names(Y_c_new)<-ids
+  
+  
+  Y_t_triangle_new=list()
+  for (j in 1:length(ids)){
+    Y_t_triangle_new[[j]]=get_triangle(Y_t_new[[j]], triangle="LOWER")
+  }
+
+  Y_c_triangle_new=list()
+  for (k in 1:length(ids)){
+    Y_c_triangle_new[[k]]=get_triangle(Y_c_new[[k]], triangle="LOWER")
+  }
+
+  names(Y_t_triangle_new)<-ids
+  names(Y_c_triangle_new)<-ids
+  
+  paired_ttests_new<-Repeated_ttest(channel_names,ids,triangle="LOWER",Y_t_triangle_new,Y_c_triangle_new)
+  
+  
+  list_pvalues_new=get_pvalues(paired_ttests_new)
+  list_pvalues_new=as.double(list_pvalues_new)
+  
+  pv_indexed_new=tibble(pv=list_pvalues_new, index=seq(1,105))
+  pv_ind_ordered_new=pv_indexed_new%>%
+  arrange(pv)
+  count1=count(filter(pv_ind_ordered_new, pv_ind_ordered_new$pv<0.05))
+  
+  BH_pvalues_new<-p.adjust(list_pvalues_new, method = "BH")
+  
+  p_vs_BH_new=tibble(list_pvalues_new,BH_pvalues_new, index=seq(1,105))
+#p_vs_BH_new
+  p_vs_BH_ord_new=p_vs_BH_new%>%
+    arrange(list_pvalues_new)
+  
+  pvsBH_reduced_new=list(orig_p=numeric(), adj_p=numeric(), ind=numeric())
+  j=1
+  for (p in 1:length(p_vs_BH_ord_new$list_pvalues_new)){
+    if (p_vs_BH_ord_new$list_pvalues_new[p]<p_vs_BH_ord_new$BH_pvalues_new[p]) {
+      pvsBH_reduced_new$orig_p[j]=p_vs_BH_ord_new$list_pvalues_new[p]
+      pvsBH_reduced_new$adj_p[j]=p_vs_BH_ord_new$BH_pvalues_new[p]
+      pvsBH_reduced_new$ind[j]=p_vs_BH_ord_new$index[p]
+      j=j+1
+    }
+  }
+
+#pvsBH_reduced=tibble(original_p,adjusted_p, ind)
+  pvsBH_reduced_new=as_tibble(pvsBH_reduced_new)
+
+  acceptance_value_new=as.numeric(max(pvsBH_reduced_new$orig_p))
+
+  acc_index_new=pvsBH_reduced_new$ind[pvsBH_reduced_new$orig_p==acceptance_value_new]
+  #pvsBH_reduced
+  #acceptance_value_new
+  count2=count(filter(p_vs_BH_ord_new, p_vs_BH_ord_new$list_pvalues_new<=acceptance_value_new))
+  rejections[i]=count1
+  rejections_BH[i]=count2
+  i=i+1
+}
 ```
+
 
 
 ```{r}

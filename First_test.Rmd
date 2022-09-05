@@ -470,7 +470,7 @@ acceptance_value=as.numeric(max(pvsBH_reduced$orig_p))
 
 acc_index=pvsBH_reduced$ind[pvsBH_reduced$orig_p==acceptance_value]
 #pvsBH_reduced
-acceptance_value
+#acceptance_value
 ```
 ```{r}
 pval_mat_long2 = melt(pvalues_matrix, varnames = c("Rows","Cols"), na.rm = TRUE)
