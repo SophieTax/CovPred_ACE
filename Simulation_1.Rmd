@@ -116,7 +116,7 @@ for (i in 1:n){
   rejections[i]=count1
   rejections_BH[i]=count2
   acceptance[i]=acceptance_value_new
-  i=i+1
+  i=i+1 
 }
 ```
 
