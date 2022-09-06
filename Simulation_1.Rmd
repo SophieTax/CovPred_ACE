@@ -23,6 +23,7 @@ source("get_pvalues.R")
 n=10
 rejections=vector(length = n)
 rejections_BH=vector(length = n)
+acceptance=vector(length = n)
 for (i in 1:n){
   mu_zeros=replicate(15,0)
   sampled<-mvrnorm(n = 4800, mu=mu_zeros,Sigma=avg_cov_control)
@@ -114,6 +115,7 @@ for (i in 1:n){
   count2=count(filter(p_vs_BH_ord_new, p_vs_BH_ord_new$list_pvalues_new<=acceptance_value_new))
   rejections[i]=count1
   rejections_BH[i]=count2
+  acceptance[i]=acceptance_value_new
   i=i+1
 }
 ```
