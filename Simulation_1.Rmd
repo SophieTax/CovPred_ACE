@@ -24,19 +24,18 @@ n=10
 rejections=vector(length = n)
 rejections_BH=vector(length = n)
 acceptance=vector(length = n)
+diag_cov=diag(x=1, num_regions, num_regions)
 for (i in 1:n){
   mu_zeros=replicate(15,0)
-  sampled<-mvrnorm(n = 4800, mu=mu_zeros,Sigma=avg_cov_control)
-  head(sampled)
-  lis <- lapply(1:730, mvrnorm, n=4800, mu=mu_zeros, Sigma=avg_cov_control)
-  X_for_short<-sample_unseen(X_short_subj$PSQI_AmtSleep,short_ids)
-  X_for_conv<-sample_unseen(X_conv_subj$PSQI_AmtSleep,conventional_ids)
-  X_for_short<-cbind(inter = 1, X_for_short)
-  X_for_short<-X_for_short[,-3]
-  X_for_conv<-cbind(inter = 1, X_for_conv)
-  X_for_conv<-X_for_conv[,-3]
-  Y_new_short<-lis[1:241]
-  Y_new_conventional<-lis[242:730]
+  #sampled<-mvrnorm(n = 4800, mu=mu_zeros,Sigma=avg_cov_control)
+  #head(sampled)
+  lis <- lapply(1:730, mvrnorm, n=4800, mu=mu_zeros, Sigma=diag_cov)
+  
+  X_for_short=X_short_subset
+  X_for_conv=X_conv_subset
+  
+  Y_new_short<-lis[1:length(short_ids)]
+  Y_new_conventional<-lis[(length(short_ids)+1):(length(short_ids)+length(conventional_ids))]
   
   fit_short<-capReg(Y_new_short,data.matrix(X_for_short),method="CAP-C")
   fit_conv<-capReg(Y_new_conventional,data.matrix(X_for_conv),method = "CAP-C")
@@ -47,11 +46,14 @@ for (i in 1:n){
   gg_inv_s_new<-gamma_inv(fit_short$gamma)
   gg_inv_c_new<-gamma_inv(fit_conv$gamma)
   
-  t_for_short_new<-sample_unseen(X_for_short$X,short_ids)
-  t_for_conv_new<-sample_unseen(X_for_conv$X,conventional_ids)
+ # t_for_short_new<-sample_unseen(X_for_short$X,short_ids)
+#  t_for_conv_new<-sample_unseen(X_for_conv$X,conventional_ids)
   
-  cov_pred_short_new = cov_pred(fit_short$gamma,fit_short$beta,t_for_short_new,gg_inv_s_new)
-  cov_pred_conv_new = cov_pred(fit_conv$gamma,fit_conv$beta,t_for_conv_new,gg_inv_c_new)
+  #cov_pred_short_new = cov_pred(fit_short$gamma,fit_short$beta,X_for_short[,2],gg_inv_s_new)
+  #cov_pred_conv_new = cov_pred(fit_conv$gamma,fit_conv$beta,X_for_conv,gg_inv_c_new)
+  
+  cov_pred_short_new <- replicate(length(short_ids), avg_cov_treatment, simplify=FALSE)
+  cov_pred_conv_new <- replicate(length(conventional_ids), avg_cov_control, simplify=FALSE)
   
   ids=append(short_ids,conventional_ids)
 

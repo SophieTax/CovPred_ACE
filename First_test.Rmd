@@ -250,6 +250,7 @@ p_cov_ss1
 Average covariance matrix for control group (will need for simulating data)
 ```{r}
 avg_cov_control<-Reduce("+", sample_cov_conventional)/length(sample_cov_conventional)
+avg_cov_treatment<-Reduce("+", sample_cov_short)/length(sample_cov_short)
 ```
 
 
@@ -266,17 +267,17 @@ gg_inv_c<-gamma_inv(fit_cap_C_conv$gamma)
 Unique X values in short and conventional and Sampling unseen X values for the 2 groups
 
 ```{r}
-source("sample_unseen.R")
-t_for_short<-sample_unseen(X_conv_subj$PSQI_AmtSleep,short_ids)
-t_for_conv<-sample_unseen(X_short_subj$PSQI_AmtSleep,conventional_ids)
+#source("sample_unseen.R")
+#t_for_short<-sample_unseen(X_conv_subj$PSQI_AmtSleep,short_ids)
+#t_for_conv<-sample_unseen(X_short_subj$PSQI_AmtSleep,conventional_ids)
 
 ```
 
 Try for 1st and 2nd subject from short sleepers.
 ```{r}
 source("cov_pred_subj.R")
-sig_hat_sj1<-cov_pred_subj(fit_cap_C_short$gamma,fit_cap_C_short$beta,t_for_short$X[1],gg_inv_s)
-sig_hat_sj2<-cov_pred_subj(fit_cap_C_short$gamma,fit_cap_C_short$beta,t_for_short$X[2],gg_inv_s)
+sig_hat_sj1<-cov_pred_subj(fit_cap_C_short$gamma,fit_cap_C_short$beta,X_short_subset[1,2],gg_inv_s)
+sig_hat_sj2<-cov_pred_subj(fit_cap_C_short$gamma,fit_cap_C_short$beta,X_conv_subset[1,2],gg_inv_s)
 sig_hat_sj1<-as.matrix(sig_hat_sj1)
 sig_hat_sj2<-as.matrix(sig_hat_sj2)
 sig_hat_sj1
@@ -309,9 +310,9 @@ Using function built for 1 subject, for short sleepers
 source("cov_pred_subj.R")
 cov_short=list()
 cov_short$cov=array(dim=c(length(channel_names),length(channel_names),length(short_ids)))
-for(i in 1:length(t_for_short$X)){
-  cov_short$sub[i]=t_for_short$sub[i]
-  cov_short$cov[,,i]=cov_pred_subj(fit_cap_C_short$gamma,fit_cap_C_short$beta,t_for_short$X[i],gg_inv_s)
+for(i in 1:length(short_ids)){
+  cov_short$sub[i]=X_short_subj$Subject[i]
+  cov_short$cov[,,i]=cov_pred_subj(fit_cap_C_short$gamma,fit_cap_C_short$beta,X_short_subset[i,2],gg_inv_s)
 }
 ```
 
@@ -319,8 +320,8 @@ for(i in 1:length(t_for_short$X)){
 New function
 ```{r}
 source("cov_pred.R")
-cov_pred_short = cov_pred(fit_cap_C_short$gamma,fit_cap_C_short$beta,t_for_short,gg_inv_s)
-cov_pred_conv = cov_pred(fit_cap_C_conv$gamma,fit_cap_C_conv$beta,t_for_conv,gg_inv_c)
+cov_pred_short = cov_pred(fit_cap_C_short$gamma,fit_cap_C_short$beta,X_short_subset[,2],gg_inv_s)
+cov_pred_conv = cov_pred(fit_cap_C_conv$gamma,fit_cap_C_conv$beta,X_conv_subset[,2],gg_inv_c)
 ```
 
 Generate Y_t and Y_c
