@@ -5,6 +5,6 @@ sample_covariance=function(data,regions,subj){
   for(i in 1:K){
     s_cov[[i]]=cov(as.matrix(data[[i]]))
   }
-  
+  names(s_cov)=subj
   s_cov
 }

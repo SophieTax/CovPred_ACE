@@ -1,0 +1,133 @@
+---
+title: "Simulation1: Base Analysis"
+author: "Sophie Tascedda"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    df_print: paged
+params:
+  num_regions: '15'
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(CovRegFC)
+library(cowplot)
+library(ggplot2)
+library(reshape2)
+library(magrittr)
+library(stringr)
+library(devtools)
+library(rstan)
+library(abind)
+library(BatchJobs)
+library(reshape2)
+library(rethinking)
+library(cap)
+library(dplyr)
+params
+```
+
+Generate data from same normal distribution with zero mean and identity matrix as covariance matrix
+
+```{r}
+n=10
+analysis_results=list()
+#rejections_BH=vector(length = n)
+pvalues=list()
+mu_zeros=replicate(num_regions,0)
+diag_cov=diag(x=1, num_regions, num_regions)
+
+for (i in 1:n){
+lis <- lapply(1:730, mvrnorm, n=4800, mu=mu_zeros, Sigma=diag_cov)
+X_for_short=X_short_subset
+X_for_conv=X_conv_subset
+  
+Y_new_short<-lis[1:length(short_ids)]
+Y_new_conventional<-lis[(length(short_ids)+1):(length(short_ids)+length(conventional_ids))]
+
+analysis2_sim1=base_analysis_full(Y_new_short, X_short_subset, Y_new_conventional, X_conv_subset, channel_names, short_ids, conventional_ids)
+
+list_pvalues2=get_pvalues(analysis2_sim1$test)
+list_pvalues2=as.double(list_pvalues2)
+
+analysis_results[[i]]=list()
+analysis_results[[i]]=analysis2_sim1
+pvalues[[i]]=list()
+pvalues[[i]]=list_pvalues2
+
+i=i+1
+
+}
+```
+
+Generate data from same normal distribution with zero mean and avg_control as covariance matrix
+
+```{r}
+n=10
+analysis_results2=list()
+#rejections_BH=vector(length = n)
+pvalues2=list()
+mu_zeros=replicate(num_regions,0)
+#diag_cov=diag(x=1, num_regions, num_regions)
+sigma=sample_covariance(Y_c_conv, num_regions, conventional_ids)
+sigma=Reduce("+", sigma)/length(sigma)
+
+for (i in 1:n){
+lis <- lapply(1:730, mvrnorm, n=4800, mu=mu_zeros, Sigma=sigma)
+X_for_short=X_short_subset
+X_for_conv=X_conv_subset
+  
+Y_new_short<-lis[1:length(short_ids)]
+Y_new_conventional<-lis[(length(short_ids)+1):(length(short_ids)+length(conventional_ids))]
+
+analysis2_sim2=base_analysis_full(Y_new_short, X_short_subset, Y_new_conventional, X_conv_subset, channel_names, short_ids, conventional_ids)
+
+list_pvalues3=get_pvalues(analysis2_sim2$test)
+list_pvalues3=as.double(list_pvalues3)
+
+analysis_results2[[i]]=list()
+analysis_results2[[i]]=analysis2_sim2
+pvalues2[[i]]=list()
+pvalues2[[i]]=list_pvalues3
+
+i=i+1
+
+}
+```
+```{r}
+pvalues2
+```
+
+
+```{r}
+source("base_analysis.R")
+
+analysis1_sim1=base_analysis(Y_new_short, X_short_subset, Y_new_conventional, X_conv_subset, channel_names, short_ids, conventional_ids)
+```
+
+```{r}
+source("base_analysis_full.R")
+
+analysis2_sim1=base_analysis_full(Y_new_short, X_short_subset, Y_new_conventional, X_conv_subset, channel_names, short_ids, conventional_ids)
+```
+
+```{r}
+list_pvalues2=get_pvalues(analysis2_sim1$test)
+list_pvalues2=as.double(list_pvalues2)
+list_pvalues2
+```
+
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
