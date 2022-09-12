@@ -156,6 +156,13 @@ list_pvalues=get_pvalues(analysis2$test)
 list_pvalues=as.double(list_pvalues)
 list_pvalues
 ```
+LET'S SEE WHAT HAPPENS IF WE USE PREDICTION FORMULA
+
+```{r}
+source("prediction_analysis.R")
+analysis3=prediction_analysis(Y_c_short, X_short_subset, Y_c_conv, X_conv_subset, channel_names, short_ids, conventional_ids)
+```
+
 
 
 
