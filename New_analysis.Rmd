@@ -1,5 +1,5 @@
 ---
-title: "Base Analysis: empirical covariance prediction, 1 test"
+title: "Sleepers analysis"
 author: "Sophie Tascedda"
 date: "`r Sys.Date()`"
 output:
@@ -13,6 +13,7 @@ params:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
+
 
 ```{r}
 library(CovRegFC)
@@ -29,7 +30,6 @@ library(reshape2)
 library(rethinking)
 library(cap)
 library(dplyr)
-library(RANN)
 params
 ```
 
@@ -80,6 +80,7 @@ ts = lapply(file_subject_ids,function(Subject) {
 }) %>% do.call(rbind,.) %>% data.frame
 names(ts)[1:num_regions] = channel_names
 ```
+
 Merge timeseries and subject info, and separate in 2 groups. Here, "short" sleepers and "conventional" sleepers
 ```{r}
 ts_subject_info = merge(ts,subject_info,by = "Subject")
@@ -119,16 +120,16 @@ Select 1 covariate (here "PSQI_AmtSleep") and convert Y and X to matrices (requi
 X_short_subset<-subset(X_short_subj, select="PSQI_AmtSleep")
 X_short_subset<-cbind(inter = 1, X_short_subset)
 
-X_short_subset<-data.matrix(X_short_subset)
-Y_short<-lapply(Y_short, function(x) data.matrix(x))
+#X_short_subset<-data.matrix(X_short_subset)
+#Y_short<-lapply(Y_short, function(x) data.matrix(x))
 ```
 
 ```{r}
 X_conv_subset<-subset(X_conv_subj, select="PSQI_AmtSleep")
 X_conv_subset<-cbind(inter = 1, X_conv_subset)
 
-X_conv_subset<-data.matrix(X_conv_subset)
-Y_conv<-lapply(Y_conv, function(x) data.matrix(x))
+#X_conv_subset<-data.matrix(X_conv_subset)
+#Y_conv<-lapply(Y_conv, function(x) data.matrix(x))
 ```
 Center Y
 ```{r}
@@ -136,127 +137,38 @@ Y_c_short<- lapply(Y_short, function(x) scale(x,center = TRUE, scale = FALSE))
 #Y_c_short<- lapply(Y_c_short, function(x) data.matrix(x))
 Y_c_conv<- lapply(Y_conv, function(x) scale(x,center = TRUE, scale = FALSE))
 #Y_c_conv<- lapply(Y_c_conv, function(x) data.matrix(x))
-
-#Y_c_short=tibble(Y_c_short)
-#Y_c_conv=tibble(Y_c_conv)
 ```
 
-RUN ANALYSIS: one cell
+Make everything into a tibble
+
+```{r}
+#X_conv_subset=as_tibble(X_conv_subset)
+#X_short_subset=as_tibble(X_short_subset)
+#Y_c_conv=as_tibble(Y_c_conv)
+#Y_c_short=as_tibble(Y_c_short)
+```
+
+## Base analysis on one cell
+Here we use avg_covariance from the opposite group as predictor for the covariance matrix of the missing potential outcome for each group.
 ```{r}
 source("base_analysis.R")
 source("sample_covariance.R")
 source("get_triangle.R")
 
-analysis1=base_analysis(Y_c_short, X_short_subset, Y_c_conv, X_conv_subset, channel_names, short_ids, conventional_ids)
+analysis1=base_analysis(Y_c_short, Y_c_conv, channel_names, short_ids, conventional_ids)
 ```
 
-RUN ANALYSIS: all cells
+## Base analysis on all cells
+
 ```{r}
 source("base_analysis_full.R")
-
-analysis2=base_analysis_full(Y_c_short, X_short_subset, Y_c_conv, X_conv_subset, channel_names, short_ids, conventional_ids)
-```
-
-```{r}
-list_pvalues=get_pvalues(analysis2$test)
-list_pvalues=as.double(list_pvalues)
-list_pvalues
-```
-
-
-LETS TRY USE KNN APPROACH
-
-
-Abbiamo:
-
-Y_c_short: Ys per conventional
-Y_c_conv: Ys per short
-
-X_conv, X_short: le covariate
-
-Serve: 
-- scov_short= sample covariance per tutti i short = prima parte Yt
-- scov_conv= sample covariance per tutti i conv = seconda parte Yc
-Poi
-- prcov_short= per ogni elemento di short, la cov predicted con knn = prima parte Yc
-- prcov_conv= per ogni elemento di short, la cov predicted con knn = seconda parte Yt
-
-SAMPLE COVARIANCE MATRICES
-Per questo abbiamo già funzione
-
-```{r}
-samplec_short=sample_covariance(Y_c_short,channel_names)
-samplec_conv=sample_covariance(Y_c_conv,channel_names)
-```
-
-PREDICTED 
-
-```{r}
-X_conv=as.matrix(X_conv_subset[,2])
-X_short=as.matrix(X_short_subset[,2])
-```
-
-PREDICTED COVS FOR SHORT
-Per 1 soggetto:
-```{r}
-nn=nn2(X_conv, X_conv[1], k=5)
-nn_Ys=Y_c_conv[nn$nn.idx]
-new_avg_knn=Reduce("+", nn_Ys)/length(nn_Ys)
-```
-
-
-```{r}
-prcov_short=list()
-for (i in 1:length(short_ids)){
-  nn=nn2(X_conv, X_short[i], k=5)
-  nn_Ys=samplec_conv[nn$nn.idx]
-  new_avg_knn=Reduce("+", nn_Ys)/length(nn_Ys)
-  prcov_short[[i]]=new_avg_knn
-}
-```
-
-PREDICTED COVS FOR CONV
-
-
-```{r}
-prcov_conv=list()
-for (i in 1:length(conventional_ids)){
-  nn=nn2(X_short, X_conv[i], k=5)
-  nn_Ys=samplec_short[nn$nn.idx]
-  new_avg_knn=Reduce("+", nn_Ys)/length(nn_Ys)
-  prcov_conv[[i]]=new_avg_knn
-}
-```
-
-GENERATE Y_C AND Y_T
-
-```{r}
-Y_t=append(samplec_short, prcov_conv)
-Y_c=append(prcov_short, samplec_conv)
-ids=append(short_ids, conventional_ids)
-```
-
-```{r}
-#Get triangular matrices
-  Y_t_triangle=list()
-  for (i in 1:length(ids)){
-    Y_t_triangle[[i]]=get_triangle(Y_t[[i]], triangle="LOWER")
-  }
-  
-  Y_c_triangle=list()
-  for (k in 1:length(ids)){
-    Y_c_triangle[[k]]=get_triangle(Y_c[[k]], triangle="LOWER")
-  }
-  
-```
-
-```{r}
 source("Repeated_ttest.R")
-all_cells<-Repeated_ttest(channel_names,ids,triangle="LOWER",Y_t_triangle,Y_c_triangle)
+analysis2=base_analysis_full(Y_c_short, Y_c_conv, channel_names, short_ids, conventional_ids)
 ```
 
 ```{r}
-list_pvalues=get_pvalues(all_cells)
+source("get_pvalues.R")
+list_pvalues=get_pvalues(analysis2$test)
 list_pvalues=as.double(list_pvalues)
 list_pvalues
 ```
@@ -268,15 +180,3 @@ hist(list_pvalues)
 
 
 
-
-
-
-
-
-
-
-Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
-
-When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
-
-The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.

@@ -1,10 +1,9 @@
-sample_covariance=function(data,regions,subj){
+sample_covariance=function(data, n){
   K=length(data)
-  P=length(regions)
+  P=length(n)
   s_cov=list()
-  for(i in 1:K){
+  for (i in 1:length(data)){
     s_cov[[i]]=cov(as.matrix(data[[i]]))
   }
-  names(s_cov)=subj
   s_cov
 }
