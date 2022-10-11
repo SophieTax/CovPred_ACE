@@ -172,14 +172,14 @@ Fit of capReg, using CAP algorithm
 ```
 Fit of capReg, using CAP-C algorithm
 ```{r}
-fit_cap_C_short<-capReg(Y_c_short,X_short_subset,method="CAP-C")
-fit_cap_C_conv<-capReg(Y_c_conv,X_conv_subset,method = "CAP-C")
+#fit_cap_C_short<-capReg(Y_c_short,X_short_subset,method="CAP-C")
+#fit_cap_C_conv<-capReg(Y_c_conv,X_conv_subset,method = "CAP-C")
 ```
 
 ```{r}
-fit_cap_C_short$beta
+#fit_cap_C_short$beta
 
-fit_cap_C_conv$beta
+#fit_cap_C_conv$beta
 ```
 Let's define treatment and control.
 Treatment "by nature": short sleeper

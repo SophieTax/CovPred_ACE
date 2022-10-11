@@ -149,13 +149,13 @@ Make everything into a tibble
 ```
 
 ## Base analysis on one cell
-Here we use avg_covariance from the opposite group as predictor for the covariance matrix of the missing potential outcome for each group.
+Here we use avg_covariance from the opposite group as predictor for the covariance matrix of the missing potential outcome for each group. We're testing on one specific couple of regions, that can be chosen. 
 ```{r}
 source("base_analysis.R")
 source("sample_covariance.R")
 source("get_triangle.R")
 
-analysis1=base_analysis(Y_c_short, Y_c_conv, channel_names, short_ids, conventional_ids)
+analysis1=base_analysis(Y_c_short, Y_c_conv, channel_names, n_row=2, n_col=1)
 ```
 
 ## Base analysis on all cells
@@ -163,7 +163,7 @@ analysis1=base_analysis(Y_c_short, Y_c_conv, channel_names, short_ids, conventio
 ```{r}
 source("base_analysis_full.R")
 source("Repeated_ttest.R")
-analysis2=base_analysis_full(Y_c_short, Y_c_conv, channel_names, short_ids, conventional_ids)
+analysis2=base_analysis_full(Y_c_short, Y_c_conv, channel_names)
 ```
 
 ```{r}
@@ -177,6 +177,65 @@ hist(list_pvalues)
 ```
 
 
+## Repeat this using KNN approach
+
+LETS TRY USE KNN APPROACH
 
 
+Abbiamo:
 
+Y_c_short: Ys per conventional
+Y_c_conv: Ys per short
+
+X_conv, X_short: le covariate
+
+Serve: 
+- scov_short= sample covariance per tutti i short = prima parte Yt
+- scov_conv= sample covariance per tutti i conv = seconda parte Yc
+Poi
+- prcov_short= per ogni elemento di short, la cov predicted con knn = prima parte Yc
+- prcov_conv= per ogni elemento di short, la cov predicted con knn = seconda parte Yt
+
+SAMPLE COVARIANCE MATRICES
+Per questo abbiamo già funzione
+
+```{r}
+samplec_short=analysis1$sample_1
+samplec_conv=analysis1$sample2
+```
+
+PREDICTED 
+
+```{r}
+X_conv=as.matrix(X_conv_subset[,2])
+X_short=as.matrix(X_short_subset[,2])
+```
+
+```{r}
+library(RANN)
+source("knn_analysis.R")
+
+analysis3=knn_analysis(X_short, X_conv, Y_c_short, Y_c_conv, channel_names, n_row=2, n_col=1, K=5)
+```
+
+
+ALL CELLS
+
+
+```{r}
+source("knn_analysis_full.R")
+source("Repeated_ttest.R")
+
+analysis4=knn_analysis_full(X_short, X_conv, Y_c_short, Y_c_conv, channel_names, K=5)
+```
+
+```{r}
+source("get_pvalues.R")
+list_pvalues=get_pvalues(analysis4$test)
+list_pvalues=as.double(list_pvalues)
+list_pvalues
+```
+
+```{r}
+hist(list_pvalues, breaks = seq(0,1,by=0.05))
+```

@@ -3,117 +3,103 @@ title: "Power Analysis"
 output: html_notebook
 ---
 
-This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
-
-Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
 
 ```{r}
   mu_zeros2=replicate(15,0)
-  sigma_control=avg_cov_control
-  sigma_treatment=avg_cov_control
+analysis_a=list()
+i=1
+  
+  #generate variation in the covariance matrix for the multivariate normal distribution we'll be sampling from
+  sample_cov_short=sample_covariance(Y_c_short,num_regions)
+  sample_cov_conv=sample_covariance(Y_c_conv,num_regions)
+  
+  sigma_control=Reduce("+", sample_cov_conv)/length(sample_cov_conv)
+  sigma_treatment=Reduce("+", sample_cov_short)/length(sample_cov_short)
+  
+  for (lambda in seq(1,2,by=0.1)){
 
-  sigma_treatment[2,1]=1.2*sigma_control[2,1]
-  sigma_treatment[3,1]=1.2*sigma_control[3,1]
-  sigma_treatment[3,2]=1.2*sigma_control[3,2]
-  sigma_treatment[4,1]=1.2*sigma_control[4,1]
-  sigma_treatment[4,2]=1.2*sigma_control[4,2]
-  sigma_treatment[4,3]=1.2*sigma_control[4,3]
+  sigma_treatment[2,1]=lambda*sigma_control[2,1]
+  sigma_treatment[3,1]=lambda*sigma_control[3,1]
+  sigma_treatment[3,2]=lambda*sigma_control[3,2]
+  sigma_treatment[4,1]=lambda*sigma_control[4,1]
+  sigma_treatment[4,2]=lambda*sigma_control[4,2]
+  sigma_treatment[4,3]=lambda*sigma_control[4,3]
+  
+  #Sample data from 2 multivariate normal distributions with slightly different sigma
 
-  sampled_control<-lapply(1:length(conventional_ids), mvrnorm, n=4800, mu=mu_zeros, Sigma=sigma_control)
-  sampled_treatment<-lapply(1:length(short_ids), mvrnorm, n=4800, mu=mu_zeros, Sigma=sigma_treatment)
+  sampled_control<-lapply(1:length(conventional_ids), mvrnorm, n=4800, mu=mu_zeros2, Sigma=sigma_control)
+  sampled_treatment<-lapply(1:length(short_ids), mvrnorm, n=4800, mu=mu_zeros2, Sigma=sigma_treatment)
 
 
-  X_for_short2<-sample_unseen(X_short_subj$PSQI_AmtSleep,short_ids)
-  X_for_conv2<-sample_unseen(X_conv_subj$PSQI_AmtSleep,conventional_ids)
-  X_for_short2<-cbind(inter = 1, X_for_short2)
-  X_for_short2<-X_for_short2[,-3]
-  X_for_conv2<-cbind(inter = 1, X_for_conv2)
-  X_for_conv2<-X_for_conv2[,-3]
   Y_new_short2<-sampled_treatment
   Y_new_conventional2<-sampled_control
   
-  fit_short2<-capReg(Y_new_short2,data.matrix(X_for_short2),method="CAP-C")
-  fit_conv2<-capReg(Y_new_conventional2,data.matrix(X_for_conv2),method = "CAP-C")
-  
-  sample_cov_short_new2<-sample_covariance(Y_new_short2,channel_names,short_ids)
-  sample_cov_conventional_new2<-sample_covariance(Y_new_conventional2,channel_names,conventional_ids)
-  
-  gg_inv_s_new2<-gamma_inv(fit_short2$gamma)
-  gg_inv_c_new2<-gamma_inv(fit_conv2$gamma)
-  
-  t_for_short_new2<-sample_unseen(X_for_short2$X,short_ids)
-  t_for_conv_new2<-sample_unseen(X_for_conv2$X,conventional_ids)
-  
-  cov_pred_short_new2 = cov_pred(fit_short2$gamma,fit_short2$beta,t_for_short_new2,gg_inv_s_new2)
-  cov_pred_conv_new2 = cov_pred(fit_conv2$gamma,fit_conv2$beta,t_for_conv_new2,gg_inv_c_new2)
-  
-  ids=append(short_ids,conventional_ids)
+  Y_c_short_new<- lapply(Y_new_short2, function(x) scale(x,center = TRUE, scale = FALSE))
 
-  Y_t_new2=append(sample_cov_short_new2,cov_pred_conv_new2)
-  names(Y_t_new2)<-ids
+  Y_c_conv_new<- lapply(Y_new_conventional2, function(x) scale(x,center = TRUE, scale = FALSE))
+  
+  source("base_analysis.R")
+  source("sample_covariance.R")
+  source("get_triangle.R")
+  source("Repeated_ttest.R")
 
-  Y_c_new2=append(cov_pred_short_new2,sample_cov_conventional_new2)
-  names(Y_c_new2)<-ids
+  tmp_a=base_analysis(Y_c_short_new, Y_c_conv_new, channel_names, n_row=2, n_col=1)
   
+  #tmp_b=base_analysis_full(Y_c_short_new, X_short_subset, Y_c_conv_new, X_conv_subset, channel_names, short_ids, conventional_ids)
   
-  Y_t_triangle_new2=list()
-  for (j in 1:length(ids)){
-    Y_t_triangle_new2[[j]]=get_triangle(Y_t_new2[[j]], triangle="LOWER")
+  analysis_a[[i]]=tmp_a$test
+  i=i+1
+
   }
-
-  Y_c_triangle_new2=list()
-  for (k in 1:length(ids)){
-    Y_c_triangle_new2[[k]]=get_triangle(Y_c_new2[[k]], triangle="LOWER")
-  }
-
-  names(Y_t_triangle_new2)<-ids
-  names(Y_c_triangle_new2)<-ids
   
-  paired_ttests_new2<-Repeated_ttest(channel_names,ids,triangle="LOWER",Y_t_triangle_new2,Y_c_triangle_new2)
-  
-  
-  list_pvalues_new2=get_pvalues(paired_ttests_new2)
-  list_pvalues_new2=as.double(list_pvalues_new2)
-  
-  pv_indexed_new2=tibble(pv=list_pvalues_new2, index=seq(1,105))
-  pv_ind_ordered_new2=pv_indexed_new2%>%
-  arrange(pv)
-  count1_2=count(filter(pv_ind_ordered_new2, pv_ind_ordered_new2$pv<0.05))
-  
-  BH_pvalues_new2<-p.adjust(list_pvalues_new2, method = "BH")
-  
-  p_vs_BH_new2=tibble(list_pvalues_new2,BH_pvalues_new2, index=seq(1,105))
-#p_vs_BH_new
-  p_vs_BH_ord_new2=p_vs_BH_new2%>%
-    arrange(list_pvalues_new2)
-  
-  pvsBH_reduced_new2=list(orig_p=numeric(), adj_p=numeric(), ind=numeric())
-  j=1
-  for (p in 1:length(p_vs_BH_ord_new2$list_pvalues_new2)){
-    if (p_vs_BH_ord_new2$list_pvalues_new2[p]<p_vs_BH_ord_new2$BH_pvalues_new2[p]) {
-      pvsBH_reduced_new2$orig_p[j]=p_vs_BH_ord_new2$list_pvalues_new2[p]
-      pvsBH_reduced_new2$adj_p[j]=p_vs_BH_ord_new2$BH_pvalues_new2[p]
-      pvsBH_reduced_new2$ind[j]=p_vs_BH_ord_new2$index[p]
-      j=j+1
-    }
-  }
-
-#pvsBH_reduced=tibble(original_p,adjusted_p, ind)
-  pvsBH_reduced_new2=as_tibble(pvsBH_reduced_new2)
-
-  acceptance_value_new2=as.numeric(max(pvsBH_reduced_new2$orig_p))
-
-  acc_index_new2=pvsBH_reduced_new2$ind[pvsBH_reduced_new2$orig_p==acceptance_value_new2]
-  #pvsBH_reduced
-  #acceptance_value_new
-  count2_2=count(filter(p_vs_BH_ord_new2, p_vs_BH_ord_new2$list_pvalues_new2<=acceptance_value_new2))
-  #rejections[i]=count1
-  
-  #rejections_BH[i]=count2
-  #acceptance[i]=acceptance_value_new
-  #i=i+1 
-
+pvals=get_pvalues(analysis_a)
 ```
+
+```{r}
+pvals
+```
+
+
+```{r}
+mu_zeros=replicate(15,0)
+analysis_b=list()
+i=1
+
+sample_cov_short=sample_covariance(Y_c_short,num_regions)
+sample_cov_conv=sample_covariance(Y_c_conv,num_regions)
+  
+sigma_control=Reduce("+", sample_cov_conv)/length(sample_cov_conv)
+sigma_treatment=Reduce("+", sample_cov_short)/length(sample_cov_short)
+
+for (lambda in seq(1,2,by=0.1)){
+  sigma_treatment[2,1]=lambda*sigma_control[2,1]
+  sigma_treatment[3,1]=lambda*sigma_control[3,1]
+  sigma_treatment[3,2]=lambda*sigma_control[3,2]
+  sigma_treatment[4,1]=lambda*sigma_control[4,1]
+  sigma_treatment[4,2]=lambda*sigma_control[4,2]
+  sigma_treatment[4,3]=lambda*sigma_control[4,3]
+  
+  sampled_control<-lapply(1:length(conventional_ids), mvrnorm, n=4800, mu=mu_zeros2, Sigma=sigma_control)
+  sampled_treatment<-lapply(1:length(short_ids), mvrnorm, n=4800, mu=mu_zeros2, Sigma=sigma_treatment)
+  
+  Y_new_short2<-sampled_treatment
+  Y_new_conventional2<-sampled_control
+  
+  Y_c_short_new<- lapply(Y_new_short2, function(x) scale(x,center = TRUE, scale = FALSE))
+
+  Y_c_conv_new<- lapply(Y_new_conventional2, function(x) scale(x,center = TRUE, scale = FALSE))
+  
+  source("knn_analysis.R")
+  
+  tmp_b=knn_analysis(X_short, X_conv, Y_c_short_new, Y_c_conv_new, channel_names, n_row=2, n_col=1, K=5)
+  
+  analysis_b[[i]]=tmp_b$test
+  
+}  
+pvals=get_pvalues(analysis_b)
+```
+
+
 
 Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
 

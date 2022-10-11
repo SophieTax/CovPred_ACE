@@ -1,12 +1,12 @@
-base_analysis=function(Y_c_group1, Y_c_group2, channels, n_row, n_col, paired){
+base_analysis_unbiased=function(Y_c_group1, Y_c_group2, channels, n_row, n_col, paired){
   
   #Compute sample covariance matrices for the 2 groups
   sample_cov_group1=sample_covariance(Y_c_group1,channels)
   sample_cov_group2=sample_covariance(Y_c_group2,channels)
   
   #Compute prediction covariance matrices for the 2 groups. Here: use avg_cov
-  avg_cov_group1=Reduce("+", sample_cov_group1)/length(sample_cov_group1)
-  avg_cov_group2=Reduce("+", sample_cov_group2)/length(sample_cov_group2)
+  avg_cov_group1=Reduce("+", sample_cov_group1)/(length(sample_cov_group1)-1)
+  avg_cov_group2=Reduce("+", sample_cov_group2)/(length(sample_cov_group2)-1)
   
   predicted_cov_for_group1 <- replicate(length(Y_c_group1), avg_cov_group2, simplify=FALSE)
   predicted_cov_for_group2 <- replicate(length(Y_c_group2), avg_cov_group1, simplify=FALSE)
@@ -45,13 +45,13 @@ base_analysis=function(Y_c_group1, Y_c_group2, channels, n_row, n_col, paired){
   for (s in 1:length(Y_c_triangle)){
     tmp_Yc[s]=Y_c_triangle[[s]][n_row,n_col]
   }
+  
   if (paired==TRUE){
-    cell1_test=t.test(x=c(tmp_Yt), y=c(tmp_Yc), alternative = "two.sided", paired = TRUE)
+  cell1_test=t.test(x=c(tmp_Yt), y=c(tmp_Yc), alternative = "two.sided", paired = TRUE)
   }
   else {
     cell1_test=t.test(x=c(tmp_Yt), y=c(tmp_Yc), alternative = "two.sided", paired = FALSE)
   }
-  
   outputs=list(sample_1=sample_cov_group1, sample2=sample_cov_group2, pred1=predicted_cov_for_group1, pred2=predicted_cov_for_group2, test=cell1_test)
   outputs
   

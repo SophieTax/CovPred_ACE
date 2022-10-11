@@ -1,0 +1,272 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+# Validity analysis 
+
+## Simplest scenario: no prediction, unpaired t-tests 
+
+Lets's start from the simplest scenario and build up from here. 
+Sample twice 100 data points from the same Normal distribution, and perform unpaired ttest on the 2 vectors of sampled values. 
+Repeat 10000 times and check if the distribution of pvalues is uniform.
+
+```{r}
+library(stats)
+library(dplyr)
+
+results=list()
+n1=100
+m=10000
+
+for (i in 1:m){
+vec1=rnorm(n1, mean = 0, sd=1)
+vec2=rnorm(n1, mean=0, sd=1)
+
+test=t.test(vec1,vec2, alternative="two.sided", paired=TRUE)
+results[[i]]=list()
+results[[i]]=test
+}
+```
+
+```{r}
+source("get_pvalues.R")
+res_pvalues=as.numeric(get_pvalues(results))
+```
+```{r}
+hist(res_pvalues, col="cadetblue")
+```
+
+Now, do same thing but sampling from multivariate normal distribution with  2x2 Identity matrix as covariance matrix. 
+Sample twice 100 data points for 2 variables (100x2 matrices) and 10 subjects.
+For each matrix obtained compute sample covariance, select the same element from each cov matrix (here, [2,1]) and perform unpaired ttest on the 2 vectors of extracted values.  Repeat 10000 times and check for uniformity in the distribution of pvalues.
+
+```{r}
+library(MASS)
+mu=replicate(2,0)
+sig=diag(x=1,2,2)
+ttests=list()
+s1=10
+for (j in 1:m){
+mat1 <-lapply(1:s1, mvrnorm, n=100, mu=mu, Sigma=sig)
+mat2 <-lapply(1:s1, mvrnorm, n=100, mu=mu, Sigma=sig)
+
+sc1=list()
+sc2=list()
+for (i in 1:s1){
+  sc1[[i]]=cov(as.matrix(mat1[[i]]))
+  sc2[[i]]=cov(as.matrix(mat2[[i]]))
+}
+
+v1=list()
+v2=list()
+for(i in 1:s1){
+  v1[i]=sc1[[i]][2,1]
+  v2[i]=sc2[[i]][2,1]
+}
+test_1=t.test(as.numeric(v1), as.numeric(v2), alternative = "two.sided", paired = FALSE)
+ttests[[j]]=test_1
+}
+pvals=get_pvalues(ttests)
+```
+
+```{r}
+hist(as.numeric(pvals) , col = "deeppink")
+```
+
+Exactly as above, but with higher dimensionality. Here, I sample from multivariate normal distribution with 15x15 Identity covariance matrix. 
+
+```{r}
+mu=replicate(15,0)
+sig=diag(x=1,15,15)
+ttests=list()
+s2=10
+for (j in 1:m){
+mat1 <-lapply(1:s2, mvrnorm, n=100, mu=mu, Sigma=sig)
+mat2 <-lapply(1:s2, mvrnorm, n=100, mu=mu, Sigma=sig)
+
+sc1=list()
+sc2=list()
+for (i in 1:s2){
+  sc1[[i]]=cov(as.matrix(mat1[[i]]))
+  sc2[[i]]=cov(as.matrix(mat2[[i]]))
+}
+
+v1=list()
+v2=list()
+for(i in 1:s2){
+  v1[i]=sc1[[i]][2,1]
+  v2[i]=sc2[[i]][2,1]
+}
+test_1=t.test(as.numeric(v1), as.numeric(v2), alternative = "two.sided", paired = FALSE)
+ttests[[j]]=test_1
+}
+pvals=get_pvalues(ttests)
+```
+
+```{r}
+hist(as.numeric(pvals), col="darksalmon")
+```
+
+Stessa cosa, con 4800 righe per ogni sampling e 100 soggetti.  
+```{r}
+mu=replicate(15,0)
+sig=diag(x=1,15,15)
+ttests=list()
+s3=100
+for (j in 1:m){
+mat1 <-lapply(1:s3, mvrnorm, n=4800, mu=mu, Sigma=sig)
+mat2 <-lapply(1:s3, mvrnorm, n=4800, mu=mu, Sigma=sig)
+
+sc1=list()
+sc2=list()
+for (i in 1:s3){
+  sc1[[i]]=cov(as.matrix(mat1[[i]]))
+  sc2[[i]]=cov(as.matrix(mat2[[i]]))
+}
+
+v1=list()
+v2=list()
+for(i in 1:s3){
+  v1[i]=sc1[[i]][2,1]
+  v2[i]=sc2[[i]][2,1]
+}
+test_1=t.test(as.numeric(v1), as.numeric(v2), alternative = "two.sided", paired = FALSE)
+ttests[[j]]=test_1
+}
+pvals=get_pvalues(ttests)
+```
+
+```{r}
+hist(as.numeric(pvals))
+```
+
+## One step further: Use average covariance from opposite condition to predict the covariance matrix for the missing potential outcome.
+
+
+Let's get back to the simple scenario of sampling from same multivariate normal distribution with 2x2 identity matrix.
+n=100 s=10 cov=2x2 identity matrix. 
+
+After finding the sample covariance matrix for each subject in each condition, find the average covariance matrix from the opposite condition and use it as prediction for the covariance matrix of the missing potential outcome. 
+Build the treatment and control vectors, extract same matrix element from each matrix of the 2 vectors and perform paired ttest.
+Repeat 10000 times. 
+To see if using a correction when computing the average gives an unbiased estimator, I perform both with and without correction on the same data points.
+How are the pvalues distributed?
+
+```{r}
+source("base_analysis.R")
+source("sample_covariance.R")
+source("get_triangle.R")
+source("base_analysis_unbiased.R")
+mu=replicate(2,0)
+sig=diag(x=1,2,2)
+ttests_1=list()
+ttests_2=list()
+s5=10
+for (j in 1:m){
+mat1 <-lapply(1:s5, mvrnorm, n=100, mu=mu, Sigma=sig)
+mat2 <-lapply(1:s5, mvrnorm, n=100, mu=mu, Sigma=sig)
+
+analysis_1=base_analysis(mat1,mat2,channels=2, n_row=2, n_col=1,paired=TRUE)
+analysis_2=base_analysis_unbiased(mat1,mat2,channels=2, n_row=2, n_col=1, paired=TRUE)
+ttests_1[[j]]=analysis_1$test
+ttests_2[[j]]=analysis_2$test
+
+}
+pvals=get_pvalues(ttests_1)
+pvals_bis=get_pvalues(ttests_2)
+```
+
+
+```{r}
+hist(as.numeric(pvals), breaks = seq(0,1,by=0.05), main="Histogram of pvalues, without adjustment term", col="gold")
+```
+```{r}
+hist(as.numeric(pvals_bis), breaks = seq(0,1,by=0.05), main="Histogram of pvalues, with adjustment term", col="gold")
+```
+
+How many rejections are there?
+```{r}
+pv_indexed=tibble(pv=pvals, index=seq(1,m))
+pv_ind_ordered=pv_indexed%>%
+  arrange(pv)
+count(filter(pv_ind_ordered, pv_ind_ordered$pv<0.05))
+```
+```{r}
+pv_indexed=tibble(pv=pvals_bis, index=seq(1,m))
+pv_ind_ordered=pv_indexed%>%
+  arrange(pv)
+count(filter(pv_ind_ordered, pv_ind_ordered$pv<0.05))
+```
+
+PROVIAMO A USARE LA COSA DI KNN
+
+```{r}
+X_conv=as.matrix(X_conv_subset[,2])
+X_short=as.matrix(X_short_subset[,2])
+```
+
+```{r}
+library(RANN)
+source("knn_analysis_unbiased.R")
+source("knn_analysis.R")
+mu=replicate(2,0)
+sig=diag(x=1,2,2)
+ttests=list()
+ttests_2=list()
+na=20
+nb=30
+M=10000
+
+unique_X_s<-unique(X_short)%>%sort(decreasing = FALSE)
+max=max(unique_X_s)
+min=min(unique_X_s)
+X_s<-data.frame(X=sample(seq(min,max,by=0.5),size=20,replace=TRUE))
+
+unique_X_c<-unique(X_conv)%>%sort(decreasing = FALSE)
+max=max(unique_X_c)
+min=min(unique_X_c)
+X_c<-data.frame(X=sample(seq(min,max,by=0.5),size=30,replace=TRUE))
+
+
+for (j in 1:M){
+mat_short <-lapply(1:na, mvrnorm, n=100, mu=mu, Sigma=sig)
+mat_conv <-lapply(1:nb, mvrnorm, n=100, mu=mu, Sigma=sig)
+
+test_1=knn_analysis(X_s$X, X_c$X, mat_short, mat_conv, channels=2, n_row=2, n_col=1, K=10)
+test_2=knn_analysis_unbiased(X_s$X, X_c$X, mat_short, mat_conv,channels=2,n_row=2, n_col=1, K=10)
+ttests[[j]]=test_1$test
+ttests_2[[j]]=test_2$test
+}
+pvals=get_pvalues(ttests)
+pvals_2=get_pvalues(ttests_2)
+``` 
+
+```{r}
+hist(as.numeric(pvals))
+```
+```{r}
+hist(as.numeric(pvals_2))
+```
+
+```{r}
+pv_indexed=tibble(pv=pvals, index=seq(1,m))
+pv_ind_ordered=pv_indexed%>%
+  arrange(pv)
+count(filter(pv_ind_ordered, pv_ind_ordered$pv<0.05))
+```
+```{r}
+pv_indexed=tibble(pv=pvals_2, index=seq(1,m))
+pv_ind_ordered=pv_indexed%>%
+  arrange(pv)
+count(filter(pv_ind_ordered, pv_ind_ordered$pv<0.05))
+```
+
+
+
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
