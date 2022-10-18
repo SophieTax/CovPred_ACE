@@ -98,18 +98,24 @@ for (lambda in seq(1,2,by=0.1)){
   Y_c_conv_new<- lapply(Y_new_conventional2, function(x) scale(x,center = TRUE, scale = FALSE))
   
   source("knn_analysis.R")
+  source("knn_analysis_unbiased.R")
   
   tmp_c=knn_analysis(X_short, X_conv, Y_c_short_new, Y_c_conv_new, channel_names, n_row=2, n_col=1, K=5)
   tmp_d=knn_analysis(X_short, X_conv, Y_c_short_new, Y_c_conv_new, channel_names, n_row=2, n_col=1, K=5)
   
   analysis_c[[i]]=tmp_c$test
   analysis_d[[i]]=tmp_d$test
+  i=i+1
   
 }  
 pvals=get_pvalues(analysis_c)
-pvals=get_pvalues(analysis_d)
+pvals2=get_pvalues(analysis_d)
 ```
 
+
+```{r}
+tibble(no_correction=as.numeric(pvals), with_correction=as.numeric(pvals2))
+```
 
 
 Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.

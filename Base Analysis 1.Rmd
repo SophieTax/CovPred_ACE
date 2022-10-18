@@ -90,6 +90,16 @@ ts_conventional = subset(ts_subject_info,sleep_duration=="conventional")
 ts_conventional$timepoint = rep(1:(nrow(ts_conventional)/4),4)
 ```
 
+```{r}
+p_avg_sleep <- subset(subject_info,sleep_duration!="undefined") %>%
+  ggplot( aes(x=PSQI_AmtSleep, fill=sleep_duration)) +
+    geom_histogram( color="#e9ecef", alpha=0.6, position = 'identity') +
+    scale_fill_manual(values=c("#69b3a2", "#404080")) +
+    theme_minimal() +
+    labs(fill="")
+p_avg_sleep
+```
+
 ### Generate our Y and X:
 Y: timeseries data
 X: covariate(s)
@@ -203,64 +213,9 @@ Y_c_conv = Ys for short
 
 X_conv, X_short: covariates
 
-### SAMPLE COVARIANCE MATRICES
-
-```{r}
-samplec_short=sample_covariance(Y_c_short,channel_names)
-samplec_conv=sample_covariance(Y_c_conv,channel_names)
-```
-
-### PREDICTED 
-
 ```{r}
 X_conv=as.matrix(X_conv_subset[,2])
 X_short=as.matrix(X_short_subset[,2])
-```
-
-PREDICTED COVS FOR SHORT
-
-```{r}
-prcov_short=list()
-for (i in 1:length(X_short)){
-  nn=nn2(X_conv, X_short[i], k=5)
-  nn_Ys=samplec_conv[nn$nn.idx]
-  new_avg_knn=Reduce("+", nn_Ys)/length(nn_Ys)
-  prcov_short[[i]]=new_avg_knn
-}
-```
-
-PREDICTED COVS FOR CONV
-
-```{r}
-prcov_conv=list()
-for (i in 1:length(X_conv)){
-  nn=nn2(X_short, X_conv[i], k=5)
-  nn_Ys=samplec_short[nn$nn.idx]
-  new_avg_knn=Reduce("+", nn_Ys)/length(nn_Ys)
-  prcov_conv[[i]]=new_avg_knn
-}
-```
-
-GENERATE Y_C AND Y_T
-
-```{r}
-Y_t=append(samplec_short, prcov_conv)
-Y_c=append(prcov_short, samplec_conv)
-ids=append(short_ids, conventional_ids)
-```
-
-```{r}
-#Get triangular matrices
-  Y_t_triangle=list()
-  for (i in 1:length(ids)){
-    Y_t_triangle[[i]]=get_triangle(Y_t[[i]], triangle="LOWER")
-  }
-  
-  Y_c_triangle=list()
-  for (k in 1:length(ids)){
-    Y_c_triangle[[k]]=get_triangle(Y_c[[k]], triangle="LOWER")
-  }
-  
 ```
 
 ```{r}
@@ -301,6 +256,7 @@ pval_plot2
 ```
 
 
+## Repeat both base analysis and knn analysis using unbiased formula when averaging (divide by n-1 instead of n)
 
 
 
