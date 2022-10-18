@@ -5,64 +5,72 @@ output: html_notebook
 
 
 ```{r}
-  mu_zeros2=replicate(15,0)
+mu_zeros2=replicate(15,0)
 analysis_a=list()
+analysis_b=list()
 i=1
-  
-  #generate variation in the covariance matrix for the multivariate normal distribution we'll be sampling from
-  sample_cov_short=sample_covariance(Y_c_short,num_regions)
-  sample_cov_conv=sample_covariance(Y_c_conv,num_regions)
-  
-  sigma_control=Reduce("+", sample_cov_conv)/length(sample_cov_conv)
-  sigma_treatment=Reduce("+", sample_cov_short)/length(sample_cov_short)
-  
-  for (lambda in seq(1,2,by=0.1)){
 
-  sigma_treatment[2,1]=lambda*sigma_control[2,1]
-  sigma_treatment[3,1]=lambda*sigma_control[3,1]
-  sigma_treatment[3,2]=lambda*sigma_control[3,2]
-  sigma_treatment[4,1]=lambda*sigma_control[4,1]
-  sigma_treatment[4,2]=lambda*sigma_control[4,2]
-  sigma_treatment[4,3]=lambda*sigma_control[4,3]
+#generate variation in the covariance matrix for the multivariate normal distribution we'll be sampling from
+sample_cov_short=sample_covariance(Y_c_short,num_regions)
+sample_cov_conv=sample_covariance(Y_c_conv,num_regions)
   
-  #Sample data from 2 multivariate normal distributions with slightly different sigma
-
-  sampled_control<-lapply(1:length(conventional_ids), mvrnorm, n=4800, mu=mu_zeros2, Sigma=sigma_control)
-  sampled_treatment<-lapply(1:length(short_ids), mvrnorm, n=4800, mu=mu_zeros2, Sigma=sigma_treatment)
-
-
-  Y_new_short2<-sampled_treatment
-  Y_new_conventional2<-sampled_control
+#sigma_control=Reduce("+", sample_cov_conv)/length(sample_cov_conv)
+#sigma_treatment=Reduce("+", sample_cov_short)/length(sample_cov_short)
   
-  Y_c_short_new<- lapply(Y_new_short2, function(x) scale(x,center = TRUE, scale = FALSE))
+for (lambda in seq(1,2,by=0.1)){
+sigma_control=Reduce("+", sample_cov_conv)/length(sample_cov_conv)
+sigma_treatment=Reduce("+", sample_cov_short)/length(sample_cov_short)
 
-  Y_c_conv_new<- lapply(Y_new_conventional2, function(x) scale(x,center = TRUE, scale = FALSE))
+sigma_treatment[2,1]=lambda*sigma_control[2,1]
+sigma_treatment[3,1]=lambda*sigma_control[3,1]
+sigma_treatment[3,2]=lambda*sigma_control[3,2]
+sigma_treatment[4,1]=lambda*sigma_control[4,1]
+sigma_treatment[4,2]=lambda*sigma_control[4,2]
+sigma_treatment[4,3]=lambda*sigma_control[4,3]
   
-  source("base_analysis.R")
-  source("sample_covariance.R")
-  source("get_triangle.R")
-  source("Repeated_ttest.R")
+#Sample data from 2 multivariate normal distributions with slightly different sigma
 
-  tmp_a=base_analysis(Y_c_short_new, Y_c_conv_new, channel_names, n_row=2, n_col=1)
+sampled_control<-lapply(1:length(conventional_ids), mvrnorm, n=4800, mu=mu_zeros2, Sigma=sigma_control)
+sampled_treatment<-lapply(1:length(short_ids), mvrnorm, n=4800, mu=mu_zeros2, Sigma=sigma_treatment)
+
+
+Y_new_short2<-sampled_treatment
+Y_new_conventional2<-sampled_control
   
-  #tmp_b=base_analysis_full(Y_c_short_new, X_short_subset, Y_c_conv_new, X_conv_subset, channel_names, short_ids, conventional_ids)
+Y_c_short_new<- lapply(Y_new_short2, function(x) scale(x,center = TRUE, scale = FALSE))
+
+Y_c_conv_new<- lapply(Y_new_conventional2, function(x) scale(x,center = TRUE, scale = FALSE))
+  
+source("base_analysis.R")
+source("sample_covariance.R")
+source("get_triangle.R")
+source("Repeated_ttest.R")
+source("base_analysis_unbiased.R")
+
+tmp_a=base_analysis(Y_c_short_new, Y_c_conv_new, channel_names, n_row=2, n_col=1, paired=TRUE)
+tmp_b=base_analysis_unbiased(Y_c_short_new, Y_c_conv_new, channel_names, n_row=2, n_col=1, paired=TRUE)
+  
+#tmp_b=base_analysis_full(Y_c_short_new, X_short_subset, Y_c_conv_new, X_conv_subset, channel_names, short_ids, conventional_ids)
   
   analysis_a[[i]]=tmp_a$test
+  analysis_b[[i]]=tmp_b$test
   i=i+1
 
   }
   
 pvals=get_pvalues(analysis_a)
+pvals2=get_pvalues(analysis_b)
 ```
 
 ```{r}
-pvals
+tibble(no_correction=as.numeric(pvals), with_correction=as.numeric(pvals2))
 ```
 
 
 ```{r}
 mu_zeros=replicate(15,0)
-analysis_b=list()
+analysis_c=list()
+analysis_d=list()
 i=1
 
 sample_cov_short=sample_covariance(Y_c_short,num_regions)
@@ -91,12 +99,15 @@ for (lambda in seq(1,2,by=0.1)){
   
   source("knn_analysis.R")
   
-  tmp_b=knn_analysis(X_short, X_conv, Y_c_short_new, Y_c_conv_new, channel_names, n_row=2, n_col=1, K=5)
+  tmp_c=knn_analysis(X_short, X_conv, Y_c_short_new, Y_c_conv_new, channel_names, n_row=2, n_col=1, K=5)
+  tmp_d=knn_analysis(X_short, X_conv, Y_c_short_new, Y_c_conv_new, channel_names, n_row=2, n_col=1, K=5)
   
-  analysis_b[[i]]=tmp_b$test
+  analysis_c[[i]]=tmp_c$test
+  analysis_d[[i]]=tmp_d$test
   
 }  
-pvals=get_pvalues(analysis_b)
+pvals=get_pvalues(analysis_c)
+pvals=get_pvalues(analysis_d)
 ```
 
 

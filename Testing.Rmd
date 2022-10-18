@@ -199,7 +199,7 @@ pv_ind_ordered=pv_indexed%>%
 count(filter(pv_ind_ordered, pv_ind_ordered$pv<0.05))
 ```
 
-PROVIAMO A USARE LA COSA DI KNN
+## Use average covariance from opposite condition, based on k nearest neighbors for the covariate, to predict the covariance matrix for the missing potential outcome.
 
 ```{r}
 X_conv=as.matrix(X_conv_subset[,2])
@@ -243,10 +243,10 @@ pvals_2=get_pvalues(ttests_2)
 ``` 
 
 ```{r}
-hist(as.numeric(pvals))
+hist(as.numeric(pvals), breaks = seq(0,1,by=0.05), main="Histogram of pvalues, knn without adjustment term", col="gold")
 ```
 ```{r}
-hist(as.numeric(pvals_2))
+hist(as.numeric(pvals_2), breaks = seq(0,1,by=0.05), main="Histogram of pvalues, knn with adjustment term", col="gold")
 ```
 
 ```{r}
@@ -261,7 +261,7 @@ pv_ind_ordered=pv_indexed%>%
   arrange(pv)
 count(filter(pv_ind_ordered, pv_ind_ordered$pv<0.05))
 ```
-
+ 
 
 
 
