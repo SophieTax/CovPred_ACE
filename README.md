@@ -22,8 +22,10 @@ For every subject, we have the loaded timeseries consisting of 4800 timepoints f
 
 ## Covariance prediction
 *"Covariance prediction.Rmd"* has the full analysis on the mentioned data. 
-Functions *base_analysis.R* and *base_analysis_unbiased.R* construct the treatment and control vectors by computing the sample covariance matrices and predicting the missing covariance matrices by averaging. The first one averages over *s*, the second over *s-1*.
-Functions *knn_analysis.R* and *knn_analysis_unbiased.R* are equivalent to the previous ones but use knn average for the covariance prediction.
+
+Functions *base_analysis_full.R* and *base_analysis_unbiased.R* construct the treatment and control vectors by computing the sample covariance matrices and predicting the missing covariance matrices by averaging. The first one averages over *s*, the second over *s-1*.
+
+Functions *knn_analysis_full.R* and *knn_analysis_unbiased.R* are equivalent to the previous ones but use knn average for the covariance prediction.
 
 ## Validity analysis
 The experiments with simulated data can be found in *Testing.Rmd*.
