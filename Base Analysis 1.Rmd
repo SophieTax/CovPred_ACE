@@ -11,6 +11,7 @@ params:
 
 ## Get and prepare the data
 
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
@@ -95,6 +96,7 @@ p_avg_sleep <- subset(subject_info,sleep_duration!="undefined") %>%
   ggplot( aes(x=PSQI_AmtSleep, fill=sleep_duration)) +
     geom_histogram( color="#e9ecef", alpha=0.6, position = 'identity') +
     scale_fill_manual(values=c("#69b3a2", "#404080")) +
+    xlab("Sleep in hours")+
     theme_minimal() +
     labs(fill="")
 p_avg_sleep
@@ -175,8 +177,29 @@ analysis2=base_analysis_full(Y_c_short, Y_c_conv, channel_names)
 source("get_pvalues.R")
 list_pvalues=get_pvalues(analysis2$test)
 list_pvalues=as.double(list_pvalues)
-hist(as.numeric(list_pvalues), breaks = seq(0,1,by=0.05), main="Histogram of pvalues", col="gold")
+hist(as.numeric(list_pvalues), breaks = seq(0,1,by=0.05), main="Histogram of pvalues", col="gold", xlab = "pvalue", ylab = "count",ylim=range(0,80))
+#abline(h=qbinom(0.95, length(list_pvalues), 0.05), col="red")
+#abline(h=qbinom(v, length(list_pvalues), 0.05), col="blue")
+abline(h=alpha,v=cutoff)
 ```
+```{r}
+pv_indexed=tibble(pv=list_pvalues, index=seq(1,105))
+pv_ind_ordered=pv_indexed%>%
+  arrange(pv)
+count(filter(pv_ind_ordered, pv_ind_ordered$pv<0.05))
+```
+Benjamini Hochberg correction
+```{r}
+i=seq(along=list_pvalues)
+m=105
+alpha=0.05
+k <- max( which( sort(list_pvalues) < i/m*alpha) )
+cutoff <- sort(list_pvalues)[k]
+cat("k =",k,"p-value cutoff=",cutoff)
+```
+
+This is where we should cut to guarantee an FDR < 5%.
+
 
 ```{r}
 source("back_to_matrix.R")
@@ -195,6 +218,8 @@ pval_plot = ggplot(data = pval_mat_long,aes(Cols, Rows, fill = value)) +
           axis.title.x=element_blank(),
           axis.title.y=element_blank(),
           legend.title=element_blank()) +
+  xlab("Regions")+
+  ylab("Regions")+
     coord_fixed() +
   scale_y_reverse()+
     ggtitle("p-values")
@@ -226,7 +251,22 @@ analysis3=knn_analysis_full(X_short, X_conv, Y_c_short, Y_c_conv, channel_names,
 ```{r}
 list_pvalues2=get_pvalues(analysis3$test)
 list_pvalues2=as.double(list_pvalues2)
-hist(as.numeric(list_pvalues2), breaks = seq(0,1,by=0.05), main="Histogram of pvalues", col="gold")
+hist(as.numeric(list_pvalues2), breaks = seq(0,1,by=0.05), main="Histogram of pvalues", col="gold", xlab = "pvalue", ylab = "count",ylim=range(0,100))
+abline(h=qbinom(v, length(list_pvalues2), 0.05), col="blue")
+```
+```{r}
+pv_indexed=tibble(pv=list_pvalues2, index=seq(1,105))
+pv_ind_ordered=pv_indexed%>%
+  arrange(pv)
+count(filter(pv_ind_ordered, pv_ind_ordered$pv<0.05))
+```
+```{r}
+i=seq(along=list_pvalues2)
+m=105
+alpha=0.05
+k2 <- max( which( sort(list_pvalues2) < i/m*alpha) )
+cutoff2 <- sort(list_pvalues2)[k2]
+cat("k =",k2,"p-value cutoff=",cutoff2)
 ```
 
 

@@ -23,7 +23,7 @@ for (i in 1:m){
 vec1=rnorm(n1, mean = 0, sd=1)
 vec2=rnorm(n1, mean=0, sd=1)
 
-test=t.test(vec1,vec2, alternative="two.sided", paired=TRUE)
+test=t.test(vec1,vec2, alternative="two.sided", paired=FALSE)
 results[[i]]=list()
 results[[i]]=test
 }
@@ -67,11 +67,11 @@ for(i in 1:s1){
 test_1=t.test(as.numeric(v1), as.numeric(v2), alternative = "two.sided", paired = FALSE)
 ttests[[j]]=test_1
 }
-pvals=get_pvalues(ttests)
+pvals1=get_pvalues(ttests)
 ```
 
 ```{r}
-hist(as.numeric(pvals) , col = "deeppink")
+hist(as.numeric(pvals1) , col = "deeppink")
 ```
 
 Exactly as above, but with higher dimensionality. Here, I sample from multivariate normal distribution with 15x15 Identity covariance matrix. 
@@ -107,6 +107,18 @@ pvals=get_pvalues(ttests)
 ```{r}
 hist(as.numeric(pvals), col="darksalmon")
 ```
+
+```{r}
+library(ggplot2)
+library(reshape2)
+df=data.frame(pvals1=as.numeric(res_pvalues), pvals2=as.numeric(pvals1), pvals3=as.numeric(pvals))
+plot8= ggplot(melt(df),aes(value,fill=variable)) + geom_histogram(position="dodge", color="black", binwidth = 0.05)+
+  #scale_x_discrete(labels = c("Drug", "Gas", "Gun", "Hang", "Jump", "Other")) +
+  #scale_fill_discrete(labels=c("M", "F")) +
+  facet_wrap( ~ variable, labeller = "label_both", dir="v")
+plot8
+```
+
 
 
 ## One step further: Use average covariance from opposite condition to predict the covariance matrix for the missing potential outcome.
@@ -148,10 +160,20 @@ pvals_bis=get_pvalues(ttests_2)
 
 ```{r}
 hist(as.numeric(pvals), breaks = seq(0,1,by=0.05), main="Histogram of pvalues, without adjustment term", col="gold")
+abline(h=qbinom(0.95, length(pvals), 0.05), col="red")
+abline(h=qbinom(v, length(pvals), 0.05), col="blue")
 ```
 ```{r}
 hist(as.numeric(pvals_bis), breaks = seq(0,1,by=0.05), main="Histogram of pvalues, with adjustment term", col="gold")
 ```
+```{r}
+df2=data.frame("no adjustment"=as.numeric(pvals), "adjusted"=as.numeric(pvals_bis))
+plot9=ggplot(melt(df2), aes(value,fill=variable))+
+  geom_histogram(position = "identity", color="black", binwidth = 0.05, alpha=0.8)+
+  facet_wrap( ~ variable, labeller = "label_value", dir="v")
+plot9
+```
+
 
 How many rejections are there?
 ```{r}
@@ -166,6 +188,28 @@ pv_ind_ordered=pv_indexed%>%
   arrange(pv)
 count(filter(pv_ind_ordered, pv_ind_ordered$pv<0.05))
 ```
+BH adjustment
+```{r}
+i=seq(along=pvals)
+i2=seq(along=pvals_bis)
+m=10000
+alpha=0.05
+k2 <- max( which( sort(as.numeric(pvals)) < i/m*alpha) )
+k3 <- max( which( sort(as.numeric(pvals_bis)) < i2/m*alpha) )
+cutoff2 <- sort(as.numeric(pvals))[k2]
+cutoff3 <- sort(as.numeric(pvals_bis))[k3]
+cat("k =",k2,"p-value cutoff=",cutoff2)
+print("")
+cat("k =",k3,"p-value cutoff=",cutoff3)
+```
+```{r}
+fdr <- p.adjust(pvals, method="fdr")
+#mypar(1,1)
+plot(pvals,fdr,log="xy")
+abline(h=alpha,v=cutoff)
+```
+
+
 
 ## Use average covariance from opposite condition, based on k nearest neighbors for the covariate, to predict the covariance matrix for the missing potential outcome.
 
@@ -180,8 +224,8 @@ source("knn_analysis_unbiased.R")
 source("knn_analysis.R")
 mu=replicate(2,0)
 sig=diag(x=1,2,2)
-ttests=list()
-ttests_2=list()
+ttests_3=list()
+ttests_4=list()
 na=20
 nb=30
 M=10000
@@ -201,33 +245,64 @@ for (j in 1:M){
 mat_short <-lapply(1:na, mvrnorm, n=100, mu=mu, Sigma=sig)
 mat_conv <-lapply(1:nb, mvrnorm, n=100, mu=mu, Sigma=sig)
 
-test_1=knn_analysis(X_s$X, X_c$X, mat_short, mat_conv, channels=2, n_row=2, n_col=1, K=10)
-test_2=knn_analysis_unbiased(X_s$X, X_c$X, mat_short, mat_conv,channels=2,n_row=2, n_col=1, K=10)
-ttests[[j]]=test_1$test
-ttests_2[[j]]=test_2$test
+test_3=knn_analysis(X_s$X, X_c$X, mat_short, mat_conv, channels=2, n_row=2, n_col=1, K=5)
+test_4=knn_analysis_unbiased(X_s$X, X_c$X, mat_short, mat_conv,channels=2,n_row=2, n_col=1, K=5)
+ttests_3[[j]]=test_3$test
+ttests_4[[j]]=test_4$test
 }
-pvals=get_pvalues(ttests)
-pvals_2=get_pvalues(ttests_2)
+pvals_3=get_pvalues(ttests_3)
+pvals_4=get_pvalues(ttests_4)
 ``` 
+```{r}
+df3=data.frame("no adjustment"=as.numeric(pvals_3), "adjusted"=as.numeric(pvals_4))
+plot10=ggplot(melt(df3), aes(value,fill=variable))+
+  geom_histogram(position = "identity", color="black", binwidth = 0.05, alpha=0.8)+
+  facet_wrap( ~ variable, labeller = "label_value", dir="v")
+plot10
+```
+
 
 ```{r}
-hist(as.numeric(pvals), breaks = seq(0,1,by=0.05), main="Histogram of pvalues, knn without adjustment term", col="gold")
+hist(as.numeric(pvals_3), breaks = seq(0,1,by=0.05), main="Histogram of pvalues, knn without adjustment term", col="gold")
 ```
 ```{r}
-hist(as.numeric(pvals_2), breaks = seq(0,1,by=0.05), main="Histogram of pvalues, knn with adjustment term", col="gold")
+v=1-0.5*0.5
+hist(as.numeric(pvals_4), breaks = seq(0,1,by=0.05), main="Histogram of pvalues, knn with adjustment term", col="gold")
+abline(h=qbinom(0.95, length(pvals_4), 0.05), col="red")
+abline(h=qbinom(v, length(pvals_4), 0.05), col="blue")
 ```
 
 ```{r}
-pv_indexed=tibble(pv=pvals, index=seq(1,m))
+pv_indexed=tibble(pv=pvals_3, index=seq(1,m))
 pv_ind_ordered=pv_indexed%>%
   arrange(pv)
 count(filter(pv_ind_ordered, pv_ind_ordered$pv<0.05))
 ```
 ```{r}
-pv_indexed=tibble(pv=pvals_2, index=seq(1,m))
+pv_indexed=tibble(pv=pvals_4, index=seq(1,m))
 pv_ind_ordered=pv_indexed%>%
   arrange(pv)
 count(filter(pv_ind_ordered, pv_ind_ordered$pv<0.05))
+```
+```{r}
+i3=seq(along=pvals_3)
+#i4=seq(along=pvals_4)
+m=10000
+alpha=0.05
+k4 <- max( which( sort(as.numeric(pvals_3)) < i3/m*alpha) )
+k5 <- max( which( sort(as.numeric(pvals_4)) < i3/m*alpha) )
+cutoff4 <- sort(as.numeric(pvals_3))[k4]
+cutoff5<- sort(as.numeric(pvals_4))[k5]
+cat("k =",k4,"p-value cutoff=",cutoff4)
+print("")
+cat("k =",k5,"p-value cutoff=",cutoff5)
+```
+
+```{r}
+fdr <- p.adjust(pvals_3, method="fdr")
+#mypar(1,1)
+plot(pvals_3,fdr,log="xy")
+abline(h=alpha,v=cutoff)
 ```
  
 
