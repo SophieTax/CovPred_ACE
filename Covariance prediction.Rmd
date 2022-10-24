@@ -1,5 +1,5 @@
 ---
-title: "Base Analysis: empirical covariance prediction"
+title: "Covariance prediction"
 author: "Sophie Tascedda"
 date: "`r Sys.Date()`"
 output:
@@ -296,7 +296,6 @@ pval_plot2
 ```
 
 
-## Repeat both base analysis and knn analysis using unbiased formula when averaging (divide by n-1 instead of n)
 
 
 
