@@ -1,4 +1,4 @@
-Repeated_ttest=function(channels, ids_dim, triangle, list_triangle_Yt, list_triangle_Yc){
+Repeated_ttest=function(channels, triangle, list_triangle_Yt, list_triangle_Yc){
   corresp_elem_Yt=vector()
   corresp_elem_Yc=vector()
   ttest=list()
@@ -10,7 +10,7 @@ Repeated_ttest=function(channels, ids_dim, triangle, list_triangle_Yt, list_tria
     i=i
     for (row in 1:(col-1)){
       i=i
-      for (s in 1:length(ids_dim)){
+      for (s in 1:length(list_triangle_Yt)){
         corresp_elem_Yt[s]=list_triangle_Yt[[s]][row,col]
         corresp_elem_Yc[s]=list_triangle_Yc[[s]][row,col]
         }
@@ -28,7 +28,7 @@ Repeated_ttest=function(channels, ids_dim, triangle, list_triangle_Yt, list_tria
     i=i
     for (row in (col+1):length(channels)){
       i=i
-      for (s in 1:length(ids_dim)){
+      for (s in 1:length(list_triangle_Yc)){
         corresp_elem_Yt[s]=list_triangle_Yt[[s]][row,col]
         corresp_elem_Yc[s]=list_triangle_Yc[[s]][row,col]
         }
