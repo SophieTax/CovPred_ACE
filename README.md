@@ -1,5 +1,4 @@
-# Git_Internship
-# ( Work in progress on the name )
+# Covariance prediction for causal discovery in brain connectivity
 Investigating how we could combine causal inference frameworks from social sciences 
 and discovery frameworks from machine learning to improve the statistical efficiency 
 of currently applied neuroimaging techniques.
@@ -10,7 +9,7 @@ Two groups are defined: short and conventional sleepers, according to the classi
 * short sleepers: average equal or less than 6 hours each night
 * conventional sleepers: average between 7 and 9 hours each night
 
-Once cleaned and grouped, we worked with the following data:
+Once cleaned and grouped, the data is structured as wollows:
 
 **_Total subjcts:_** : 730, of which:
 
@@ -20,6 +19,15 @@ Once cleaned and grouped, we worked with the following data:
 
 
 For every subject, we have the loaded timeseries consisting of 4800 timepoints for each of the 15 selected brain regions (thus resulting in 4800x15 matrices).
+
+## Covariance prediction
+*"Covariance prediction.Rmd"* has the full analysis on the mentioned data. 
+Functions *base_analysis.R* and *base_analysis_unbiased.R* construct the treatment and control vectors by computing the sample covariance matrices and predicting the missing covariance matrices by averaging. The first one averages over *s*, the second over *s-1*.
+Functions *knn_analysis.R* and *knn_analysis_unbiased.R* are equivalent to the previous ones but use knn average for the covariance prediction.
+
+## Validity analysis
+The experiments with simulated data can be found in *Testing.Rmd*.
+
 
 ## References
 <a id="1">[1]</a> 
