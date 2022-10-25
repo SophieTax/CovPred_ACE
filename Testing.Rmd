@@ -7,6 +7,7 @@ output: html_notebook
 
 ## Simplest scenario: no prediction, unpaired t-tests 
 
+
 Lets's start from the simplest scenario and build up from here. 
 Sample twice 100 data points from the same Normal distribution, and perform unpaired ttest on the 2 vectors of sampled values. 
 Repeat 10000 times and check if the distribution of pvalues is uniform.
@@ -18,8 +19,8 @@ library(dplyr)
 results=list()
 n1=100
 m=10000
-
 for (i in 1:m){
+  set.seed(i)
 vec1=rnorm(n1, mean = 0, sd=1)
 vec2=rnorm(n1, mean=0, sd=1)
 
@@ -48,6 +49,7 @@ sig=diag(x=1,2,2)
 ttests=list()
 s1=10
 for (j in 1:m){
+  set.seed(j)
 mat1 <-lapply(1:s1, mvrnorm, n=100, mu=mu, Sigma=sig)
 mat2 <-lapply(1:s1, mvrnorm, n=100, mu=mu, Sigma=sig)
 
@@ -82,6 +84,7 @@ sig=diag(x=1,15,15)
 ttests=list()
 s2=10
 for (j in 1:m){
+  set.seed(j)
 mat1 <-lapply(1:s2, mvrnorm, n=100, mu=mu, Sigma=sig)
 mat2 <-lapply(1:s2, mvrnorm, n=100, mu=mu, Sigma=sig)
 
@@ -115,7 +118,7 @@ df=data.frame(pvals1=as.numeric(res_pvalues), pvals2=as.numeric(pvals1), pvals3=
 plot8= ggplot(melt(df),aes(value,fill=variable)) + geom_histogram(position="dodge", color="black", binwidth = 0.05)+
   #scale_x_discrete(labels = c("Drug", "Gas", "Gun", "Hang", "Jump", "Other")) +
   #scale_fill_discrete(labels=c("M", "F")) +
-  facet_wrap( ~ variable, labeller = "label_both", dir="v")
+  facet_wrap( ~ variable, labeller = "label_value", dir="v")
 plot8
 ```
 
@@ -144,6 +147,7 @@ ttests_1=list()
 ttests_2=list()
 s3=10
 for (j in 1:m){
+  set.seed(j)
 mat1 <-lapply(1:s3, mvrnorm, n=100, mu=mu, Sigma=sig)
 mat2 <-lapply(1:s3, mvrnorm, n=100, mu=mu, Sigma=sig)
 
@@ -160,8 +164,8 @@ pvals_bis=get_pvalues(ttests_2)
 
 ```{r}
 hist(as.numeric(pvals), breaks = seq(0,1,by=0.05), main="Histogram of pvalues, without adjustment term", col="gold")
-abline(h=qbinom(0.95, length(pvals), 0.05), col="red")
-abline(h=qbinom(v, length(pvals), 0.05), col="blue")
+#abline(h=qbinom(0.95, length(pvals), 0.05), col="red")
+#abline(h=qbinom(v, length(pvals), 0.05), col="blue")
 ```
 ```{r}
 hist(as.numeric(pvals_bis), breaks = seq(0,1,by=0.05), main="Histogram of pvalues, with adjustment term", col="gold")
@@ -242,6 +246,7 @@ X_c<-data.frame(X=sample(seq(min,max,by=0.5),size=30,replace=TRUE))
 
 
 for (j in 1:M){
+  set.seed(j)
 mat_short <-lapply(1:na, mvrnorm, n=100, mu=mu, Sigma=sig)
 mat_conv <-lapply(1:nb, mvrnorm, n=100, mu=mu, Sigma=sig)
 
